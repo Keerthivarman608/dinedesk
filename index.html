@@ -7,7 +7,15 @@
     <meta name="theme-color" content="#ffffff" />
     <script src="https://accounts.google.com/gsi/client" async defer></script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>rakshith</title>
+    <meta name="description" content="Book the best restaurants directly from your phone." />
+    <title>DineDesk</title>
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js');
+        });
+      }
+    </script>
   </head>
   <body>
     <div id="root"></div>
