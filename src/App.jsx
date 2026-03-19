@@ -20,30 +20,52 @@ const IconCheck = (p) => <Icon {...p} d={<><polyline points="20 6 9 17 4 12"/></
 const IconX = (p) => <Icon {...p} d={<><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></>} />;
 const IconStore = (p) => <Icon {...p} d={<><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v16"/></>} />;
 
+function Toast({ msg, type }) {
+  if (!msg) return null;
+  return (
+    <div className={`toast-container toast-${type}`}>
+      <div style={{display:'flex', alignItems:'center', gap:'8px'}}>
+         {type==='error' && <IconX size={16} />}
+         {type==='success' && <IconCheck size={16} />}
+         {msg}
+      </div>
+    </div>
+  );
+}
+
 export default function App() {
   const [user, setUser] = useState(null); // null = not logged in
+  const [toast, setToast] = useState(null);
 
-  if (!user) {
-    return <AuthView onLogin={setUser} />;
-  }
+  const showToast = (msg, type='error') => {
+    setToast({ msg, type });
+    setTimeout(() => setToast(null), 4000);
+  };
 
-  if (user.role === 'RESTAURANT') {
-    return <OwnerApp user={user} onLogout={()=>setUser(null)} />;
-  }
+  const renderApp = () => {
+    if (!user) return <AuthView onLogin={setUser} showToast={showToast} />;
+    if (user.role === 'RESTAURANT') return <OwnerApp user={user} onLogout={()=>setUser(null)} showToast={showToast} />;
+    return <CustomerApp user={user} onLogout={()=>setUser(null)} showToast={showToast} />;
+  };
 
-  return <CustomerApp user={user} onLogout={()=>setUser(null)} />;
+  return (
+    <>
+      <Toast {...toast} />
+      {renderApp()}
+    </>
+  );
 }
 
 // ==========================================
 // AUTHENTICATION VIEW
 // ==========================================
-function AuthView({ onLogin }) {
+function AuthView({ onLogin, showToast }) {
   const [isLogin, setIsLogin] = useState(true);
   const [role, setRole] = useState('CUSTOMER');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
-  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
   const googleBtnRef = useRef(null);
 
   // Initialize Google Sign-In
@@ -63,21 +85,23 @@ function AuthView({ onLogin }) {
 
   const handleGoogleLogin = async (response) => {
     try {
+      setLoading(true);
       const res = await fetch(API + '/auth/google', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ credential: response.credential })
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error);
+      showToast('Logged in successfully', 'success');
       onLogin(json.user);
     } catch (err) {
-      setError(err.message);
-    }
+      showToast(err.message === 'Failed to fetch' ? 'Network Error: Please check your connection.' : err.message, 'error');
+    } finally { setLoading(false); }
   };
 
   const submit = async (e) => {
     e.preventDefault();
-    setError('');
+    setLoading(true);
     const endpoint = isLogin ? '/auth/login' : '/auth/register';
     const body = isLogin ? { email, password } : { name, email, password, role };
     
@@ -88,31 +112,31 @@ function AuthView({ onLogin }) {
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error);
+      showToast('Welcome!', 'success');
       onLogin(json.user);
     } catch (err) {
-      setError(err.message);
-    }
+      showToast(err.message === 'Failed to fetch' ? 'Network Error: Please check your connection.' : err.message, 'error');
+    } finally { setLoading(false); }
   };
 
   return (
     <div className="app-container fade-in" style={{padding: '40px 20px', justifyContent:'center'}}>
+      {loading && <div className="spinner" style={{position:'absolute', top:20, right:20, margin:0, width:24, height:24}} />}
       <h1 className="home-title" style={{textAlign:'center', marginBottom:'8px'}}>{isLogin ? 'Welcome Back' : 'Create Account'}</h1>
       <p style={{textAlign:'center', color:'var(--text-secondary)', marginBottom:'32px'}}>Sign in to DineDesk to continue.</p>
       
       {!isLogin && (
         <div style={{display:'flex', gap:'12px', marginBottom:'24px'}}>
-          <button className="btn-secondary" style={{flex:1, background: role==='CUSTOMER'?'var(--brand-primary)':'var(--bg-secondary)', color: role==='CUSTOMER'?'#fff':'#000', padding:'12px', borderRadius:'12px', fontWeight:'700'}} onClick={()=>setRole('CUSTOMER')}>Diner</button>
-          <button className="btn-secondary" style={{flex:1, background: role==='RESTAURANT'?'var(--brand-primary)':'var(--bg-secondary)', color: role==='RESTAURANT'?'#fff':'#000', padding:'12px', borderRadius:'12px', fontWeight:'700'}} onClick={()=>setRole('RESTAURANT')}>Restaurant</button>
+          <button type="button" className="btn-secondary" style={{flex:1, background: role==='CUSTOMER'?'var(--brand-primary)':'var(--bg-secondary)', color: role==='CUSTOMER'?'#fff':'#000', padding:'12px', borderRadius:'12px', fontWeight:'700'}} onClick={()=>setRole('CUSTOMER')}>Diner</button>
+          <button type="button" className="btn-secondary" style={{flex:1, background: role==='RESTAURANT'?'var(--brand-primary)':'var(--bg-secondary)', color: role==='RESTAURANT'?'#fff':'#000', padding:'12px', borderRadius:'12px', fontWeight:'700'}} onClick={()=>setRole('RESTAURANT')}>Restaurant</button>
         </div>
       )}
-
-      {error && <div style={{background:'#FEE2E2', color:'#EF4444', padding:'12px', borderRadius:'8px', marginBottom:'20px', fontSize:'0.9rem', fontWeight:'600'}}>{error}</div>}
 
       <form onSubmit={submit}>
         {!isLogin && <div className="form-group"><label className="form-label">Full Name / Business Name</label><input required className="form-input" value={name} onChange={e=>setName(e.target.value)} /></div>}
         <div className="form-group"><label className="form-label">Email Address</label><input required type="email" className="form-input" value={email} onChange={e=>setEmail(e.target.value)} /></div>
         <div className="form-group"><label className="form-label">Password</label><input required type="password" className="form-input" value={password} onChange={e=>setPassword(e.target.value)} /></div>
-        <button className="btn-primary" type="submit" style={{marginTop:'24px'}}>{isLogin ? 'Sign In' : 'Sign Up'}</button>
+        <button className="btn-primary" type="submit" disabled={loading} style={{marginTop:'24px'}}>{loading ? 'Connecting...' : (isLogin ? 'Sign In' : 'Sign Up')}</button>
       </form>
 
       {/* Google Sign-In */}
@@ -124,7 +148,7 @@ function AuthView({ onLogin }) {
       {GOOGLE_CLIENT_ID ? (
         <div ref={googleBtnRef} style={{display:'flex', justifyContent:'center'}} />
       ) : (
-        <button className="btn-secondary" style={{width:'100%', display:'flex', alignItems:'center', justifyContent:'center', gap:'10px', padding:'14px', borderRadius:'12px', fontWeight:'600'}} onClick={()=>alert('Google Login is currently disabled. To enable it, the administrator must generate an OAuth Client ID from Google Cloud Console and save it to the environment variables!')}>
+        <button type="button" className="btn-secondary" style={{width:'100%', display:'flex', alignItems:'center', justifyContent:'center', gap:'10px', padding:'14px', borderRadius:'12px', fontWeight:'600'}} onClick={()=>showToast('Google API Key missing. Set VITE_GOOGLE_CLIENT_ID in Vercel.', 'error')}>
           <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
           Continue with Google
         </button>
@@ -150,39 +174,52 @@ function AuthView({ onLogin }) {
 // ==========================================
 // RESTAURANT OWNER DASHBOARD
 // ==========================================
-function OwnerApp({ user, onLogout }) {
+function OwnerApp({ user, onLogout, showToast }) {
   const [view, setView] = useState('bookings');
   const [venues, setVenues] = useState([]);
   const [bookings, setBookings] = useState([]);
   const [addOpen, setAddOpen] = useState(false);
   const [newV, setNewV] = useState({ name:'', cuisine:'American', priceRange:'$$', image:'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4', distance:'1.0 mi', about:'' });
+  const [loading, setLoading] = useState(true);
 
   const fetchVenuesAndBookings = async () => {
     try {
+      setLoading(true);
       const vRes = await fetch(`${API}/restaurants/owner/${user.id}`);
       const vData = await vRes.json();
       setVenues(vData);
 
       if (vData.length > 0) {
-        // Just fetch bookings for their first venue for simplicity
         const bRes = await fetch(`${API}/bookings/restaurant/${vData[0].id}`);
         setBookings(await bRes.json());
       }
-    } catch(err){}
+    } catch(err){
+      showToast('Network error: Retrying connection...', 'error');
+    } finally { setLoading(false); }
   };
 
   useEffect(() => { fetchVenuesAndBookings(); }, [user.id]);
 
   const updateStatus = async (id, status) => {
-    await fetch(`${API}/bookings/${id}/status`, { method: 'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify({status}) });
-    setBookings(p => p.map(b => b.id === id ? { ...b, status } : b));
+    try {
+      await fetch(`${API}/bookings/${id}/status`, { method: 'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify({status}) });
+      setBookings(p => p.map(b => b.id === id ? { ...b, status } : b));
+      showToast(`Booking marked as ${status}`, 'success');
+    } catch (err) {
+      showToast('Failed to update. Check connection.', 'error');
+    }
   };
 
   const submitVenue = async () => {
-    if (!newV.name) return;
-    await fetch(`${API}/restaurants`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({...newV, ownerId: user.id, tags:['New']}) });
-    setAddOpen(false);
-    fetchVenuesAndBookings();
+    if (!newV.name) { showToast('Please enter a venue name.'); return; }
+    try {
+      await fetch(`${API}/restaurants`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({...newV, ownerId: user.id, tags:['New']}) });
+      setAddOpen(false);
+      showToast('Venue successfully added!', 'success');
+      fetchVenuesAndBookings();
+    } catch(err) {
+      showToast('Error saving venue. Are you online?', 'error');
+    }
   };
 
   const Nav = () => (
@@ -203,10 +240,15 @@ function OwnerApp({ user, onLogout }) {
 
         {view === 'bookings' && (
           <div style={{padding:'0 20px'}}>
-             {venues.length === 0 ? (
-               <div style={{textAlign:'center', marginTop:'40px', color:'var(--text-tertiary)'}}>You must add a venue first to receive bookings.</div>
+             {loading ? <div className="spinner" /> :
+             venues.length === 0 ? (
+               <div className="error-state">
+                 <div className="error-icon"><IconStore size={24} /></div>
+                 <h3>No Venues Yet</h3>
+                 <p style={{color:'var(--text-secondary)', marginTop:'8px'}}>Tap 'My Venues' to create your first restaurant.</p>
+               </div>
              ) : bookings.length === 0 ? (
-               <div style={{textAlign:'center', marginTop:'40px', color:'var(--text-tertiary)'}}>No reservations in the queue yet.</div>
+               <div style={{textAlign:'center', padding:'40px 0', color:'var(--text-tertiary)', fontWeight:'600'}}>No reservations in the queue yet.</div>
              ) : bookings.map(b => (
                <div className="booking-card slide-up" key={b.id}>
                  <div style={{display:'flex', justifyContent:'space-between', marginBottom:'12px'}}>
@@ -233,8 +275,11 @@ function OwnerApp({ user, onLogout }) {
 
         {view === 'venues' && (
           <div style={{padding:'0 20px'}}>
-             <p style={{fontSize:'0.9rem', color:'var(--text-secondary)', marginBottom:'20px'}}>These are the restaurants you currently operate on the platform.</p>
-             {venues.map(v => (
+             <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'20px'}}>
+               <p style={{fontSize:'0.9rem', color:'var(--text-secondary)', margin:0}}>Your active platform venues.</p>
+               <button className="btn-secondary" style={{padding:'6px 12px', fontSize:'0.85rem'}} onClick={fetchVenuesAndBookings}>⟳ Refresh</button>
+             </div>
+             {loading ? <div className="spinner" /> : venues.map(v => (
                <div className="rest-card" key={v.id} style={{marginBottom:'24px', pointerEvents:'none'}}>
                  <div className="rest-card-image-wrap" style={{aspectRatio:'16/9'}}>
                    <img src={v.image} alt={v.name} className="rest-card-image" />
@@ -268,9 +313,9 @@ function OwnerApp({ user, onLogout }) {
 }
 
 // ==========================================
-// CUSTOMER APP (Current App UI but using user DB)
+// CUSTOMER APP
 // ==========================================
-function CustomerApp({ user, onLogout }) {
+function CustomerApp({ user, onLogout, showToast }) {
   const [view, setView] = useState('home');
   const [rests, setRests] = useState([]);
   const [bookings, setBookings] = useState([]);
@@ -282,37 +327,51 @@ function CustomerApp({ user, onLogout }) {
   const [cat, setCat] = useState('All');
   const [bData, setBData] = useState({ date:'2024-11-01', time:'19:00', guests:'2' });
   const [modBooking, setModBooking] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    fetch(`${API}/restaurants`).then(r=>r.json()).then(setRests);
-    fetchBookings();
-  }, [user.id]);
-
-  const fetchBookings = async () => {
-    const res = await fetch(`${API}/bookings/user/${user.id}`);
-    setBookings(await res.json());
+  const fetchAll = async () => {
+    try {
+      setLoading(true);
+      const [rRes, bRes] = await Promise.all([
+        fetch(`${API}/restaurants`),
+        fetch(`${API}/bookings/user/${user.id}`)
+      ]);
+      setRests(await rRes.json());
+      setBookings(await bRes.json());
+    } catch(err) {
+      showToast('Offline Mode: Pull to refresh.', 'error');
+    } finally { setLoading(false); }
   };
+
+  useEffect(() => { fetchAll(); }, [user.id]);
 
   const toggleFav = (e, id) => { e.stopPropagation(); setFavs(p => { const n=new Set(p); n.has(id)?n.delete(id):n.add(id); return n; }); };
   const openDetail = r => { setSel(r); setDetailOpen(true); };
   const openBooking = () => { setModBooking(null); setModalOpen(true); };
 
   const confirmBooking = async () => {
-    if (modBooking) {
-      // Modify existing
-      await fetch(`${API}/bookings/${modBooking.id}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ date:bData.date, time:bData.time, guests:parseInt(bData.guests), status: 'Pending' }) });
-    } else {
-      // Create new
-      await fetch(`${API}/bookings`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ restaurantId:sel.id, userId:user.id, date:bData.date, time:bData.time, guests:parseInt(bData.guests) }) });
+    try {
+      if (modBooking) {
+        await fetch(`${API}/bookings/${modBooking.id}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ date:bData.date, time:bData.time, guests:parseInt(bData.guests), status: 'Pending' }) });
+        showToast('Reservation securely updated!', 'success');
+      } else {
+        await fetch(`${API}/bookings`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ restaurantId:sel.id, userId:user.id, date:bData.date, time:bData.time, guests:parseInt(bData.guests) }) });
+        showToast('Reservation successfully sent to the restaurant!', 'success');
+      }
+      fetchAll();
+      setModalOpen(false); setDetailOpen(false); setModBooking(null); setView('success');
+    } catch(err) {
+      showToast('Network Error: Could not save reservation.', 'error');
     }
-    fetchBookings();
-    setModalOpen(false); setDetailOpen(false); setModBooking(null); setView('success');
   };
 
   const cancelBooking = async (id) => {
     if(confirm('Cancel this reservation?')) {
-      await fetch(`${API}/bookings/${id}/status`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify({status:'Cancelled'}) });
-      fetchBookings();
+      try {
+        await fetch(`${API}/bookings/${id}/status`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify({status:'Cancelled'}) });
+        showToast('Reservation securely cancelled.', 'info');
+        fetchAll();
+      } catch(err) { showToast('Network error while cancelling.', 'error'); }
     }
   };
 
@@ -346,12 +405,19 @@ function CustomerApp({ user, onLogout }) {
     <div className="app-container fade-in">
       <div className="scroll-view">
         <div className="home-header">
-          <div><div className="home-greeting">Welcome back, {user.name}</div><h1 className="home-title">Find a Table</h1></div>
-          <button className="header-icon-btn"><IconUser size={20} /></button>
+           <div><div className="home-greeting">Welcome back, {user.name}</div><h1 className="home-title">Find a Table</h1></div>
+           <button className="header-icon-btn" onClick={fetchAll}>⟳</button>
         </div>
         <div className="categories-container">{CATS.map(c=><button key={c} className={`category-pill ${cat===c?'active':''}`} onClick={()=>setCat(c)}>{c}</button>)}</div>
         <div className="feed-list">
-          {filtered.map(r=>(
+          {loading ? <div className="spinner" /> : filtered.length === 0 ? (
+            <div className="error-state">
+              <div className="error-icon"><IconSearch size={24} /></div>
+              <h3>No match found</h3>
+              <p style={{color:'var(--text-secondary)', marginTop:'8px'}}>Try exploring a different cuisine.</p>
+              <button className="btn-secondary mt-4" onClick={()=>setCat('All')}>Clear Filter</button>
+            </div>
+          ) : filtered.map(r=>(
             <div className="rest-card" key={r.id} onClick={()=>openDetail(r)}>
               <div className="rest-card-image-wrap">
                  <img src={r.image} alt={r.name} className="rest-card-image" loading="lazy" />
@@ -400,12 +466,13 @@ function CustomerApp({ user, onLogout }) {
     <div className="app-container fade-in">
       <div className="scroll-view">
         <div className="bookings-header"><h1 className="bookings-title">My Reservations</h1></div>
-        <div className="tabs"><button className="tab active">Upcoming</button><button className="tab">Past</button></div>
+        <div className="tabs"><button className="tab active">Upcoming</button><button className="tab" onClick={fetchAll}>⟳ Refresh</button></div>
         <div>
-          {bookings.length===0 ? (
-            <div style={{textAlign:'center', padding:'60px 20px', color:'var(--text-tertiary)'}}>
-              <IconCalendar size={48} color="var(--border-dark)" style={{marginBottom:'16px'}} />
-              <h3>No upcoming reservations</h3><p style={{marginTop:'8px', fontSize:'0.9rem'}}>Book a table to see it here.</p>
+          {loading ? <div className="spinner" /> : bookings.length===0 ? (
+            <div className="error-state">
+              <div className="error-icon" style={{background:'var(--bg-secondary)', color:'var(--border-dark)'}}><IconCalendar size={24} /></div>
+              <h3>No upcoming reservations</h3><p style={{marginTop:'8px', fontSize:'0.9rem', color:'var(--text-secondary)'}}>Book a table to see it here.</p>
+              <button className="btn-primary mt-4" style={{width:'auto', padding:'12px 24px'}} onClick={()=>setView('home')}>Find Tables</button>
             </div>
           ) : bookings.map(b=>(
             <div className="booking-card slide-up" key={b.id}>
