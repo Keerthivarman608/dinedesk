@@ -194,6 +194,20 @@ app.patch('/api/bookings/:id/status', async (req, res) => {
   }
 });
 
+// Update Booking Details (Reschedule by Customer)
+app.put('/api/bookings/:id', async (req, res) => {
+  try {
+    const { date, time, guests, status } = req.body;
+    await db.query(
+      'UPDATE bookings SET date = $1, time = $2, guests = $3, status = $4 WHERE id = $5',
+      [date, time, guests, status || 'Pending', req.params.id]
+    );
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Catch-all to serve frontend Route
 const indexHtml = path.join(__dirname, '../dist/index.html');
 app.use((req, res) => {

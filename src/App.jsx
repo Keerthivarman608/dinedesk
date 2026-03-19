@@ -124,7 +124,7 @@ function AuthView({ onLogin }) {
       {GOOGLE_CLIENT_ID ? (
         <div ref={googleBtnRef} style={{display:'flex', justifyContent:'center'}} />
       ) : (
-        <button className="btn-secondary" style={{width:'100%', display:'flex', alignItems:'center', justifyContent:'center', gap:'10px', padding:'14px', borderRadius:'12px', fontWeight:'600'}} disabled>
+        <button className="btn-secondary" style={{width:'100%', display:'flex', alignItems:'center', justifyContent:'center', gap:'10px', padding:'14px', borderRadius:'12px', fontWeight:'600'}} onClick={()=>alert('Google Login is currently disabled. To enable it, the administrator must generate an OAuth Client ID from Google Cloud Console and save it to the environment variables!')}>
           <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
           Continue with Google
         </button>
@@ -154,6 +154,8 @@ function OwnerApp({ user, onLogout }) {
   const [view, setView] = useState('bookings');
   const [venues, setVenues] = useState([]);
   const [bookings, setBookings] = useState([]);
+  const [addOpen, setAddOpen] = useState(false);
+  const [newV, setNewV] = useState({ name:'', cuisine:'American', priceRange:'$$', image:'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4', distance:'1.0 mi', about:'' });
 
   const fetchVenuesAndBookings = async () => {
     try {
@@ -174,6 +176,13 @@ function OwnerApp({ user, onLogout }) {
   const updateStatus = async (id, status) => {
     await fetch(`${API}/bookings/${id}/status`, { method: 'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify({status}) });
     setBookings(p => p.map(b => b.id === id ? { ...b, status } : b));
+  };
+
+  const submitVenue = async () => {
+    if (!newV.name) return;
+    await fetch(`${API}/restaurants`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({...newV, ownerId: user.id, tags:['New']}) });
+    setAddOpen(false);
+    fetchVenuesAndBookings();
   };
 
   const Nav = () => (
@@ -234,11 +243,26 @@ function OwnerApp({ user, onLogout }) {
                  <div className="rest-card-meta">{v.cuisine} · {v.priceRange} · {v.rating} Stars</div>
                </div>
              ))}
-             <button className="btn-primary" onClick={()=>{alert('Add Venue Form would popup here in real app!')}}>+ Add New Venue</button>
+             <button className="btn-primary" onClick={()=>setAddOpen(true)}>+ Add New Venue</button>
           </div>
         )}
       </div>
       <Nav />
+      {addOpen && (
+        <div className="modal-overlay" onClick={()=>setAddOpen(false)}>
+          <div className="modal-sheet slide-up" onClick={e=>e.stopPropagation()}>
+            <div className="modal-sheet-handle" />
+            <div className="modal-header"><h2 className="modal-title">New Venue</h2><button className="modal-close-btn" onClick={()=>setAddOpen(false)}><IconX size={18} /></button></div>
+            <div className="form-group"><label className="form-label">Restaurant Name</label><input className="form-input" value={newV.name} onChange={e=>setNewV({...newV,name:e.target.value})} /></div>
+            <div className="form-row">
+               <div className="form-group"><label className="form-label">Cuisine</label><input className="form-input" value={newV.cuisine} onChange={e=>setNewV({...newV,cuisine:e.target.value})} /></div>
+               <div className="form-group"><label className="form-label">Price Range</label><select className="form-select" value={newV.priceRange} onChange={e=>setNewV({...newV,priceRange:e.target.value})}><option>$</option><option>$$</option><option>$$$</option></select></div>
+            </div>
+            <div className="form-group"><label className="form-label">About / Description</label><textarea className="form-input" rows="3" value={newV.about} onChange={e=>setNewV({...newV,about:e.target.value})} /></div>
+            <button className="btn-primary mt-4" onClick={submitVenue}>Create Venue</button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -257,6 +281,7 @@ function CustomerApp({ user, onLogout }) {
   const [search, setSearch] = useState('');
   const [cat, setCat] = useState('All');
   const [bData, setBData] = useState({ date:'2024-11-01', time:'19:00', guests:'2' });
+  const [modBooking, setModBooking] = useState(null);
 
   useEffect(() => {
     fetch(`${API}/restaurants`).then(r=>r.json()).then(setRests);
@@ -270,12 +295,33 @@ function CustomerApp({ user, onLogout }) {
 
   const toggleFav = (e, id) => { e.stopPropagation(); setFavs(p => { const n=new Set(p); n.has(id)?n.delete(id):n.add(id); return n; }); };
   const openDetail = r => { setSel(r); setDetailOpen(true); };
-  const openBooking = () => { setModalOpen(true); };
+  const openBooking = () => { setModBooking(null); setModalOpen(true); };
 
   const confirmBooking = async () => {
-    await fetch(`${API}/bookings`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ restaurantId:sel.id, userId:user.id, date:bData.date, time:bData.time, guests:parseInt(bData.guests) }) });
+    if (modBooking) {
+      // Modify existing
+      await fetch(`${API}/bookings/${modBooking.id}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ date:bData.date, time:bData.time, guests:parseInt(bData.guests), status: 'Pending' }) });
+    } else {
+      // Create new
+      await fetch(`${API}/bookings`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ restaurantId:sel.id, userId:user.id, date:bData.date, time:bData.time, guests:parseInt(bData.guests) }) });
+    }
     fetchBookings();
-    setModalOpen(false); setDetailOpen(false); setView('success');
+    setModalOpen(false); setDetailOpen(false); setModBooking(null); setView('success');
+  };
+
+  const cancelBooking = async (id) => {
+    if(confirm('Cancel this reservation?')) {
+      await fetch(`${API}/bookings/${id}/status`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify({status:'Cancelled'}) });
+      fetchBookings();
+    }
+  };
+
+  const openModify = (b) => {
+    setSel({ id: b.restaurantId, name: b.restaurantName });
+    setModBooking(b);
+    setBData({ date: b.date, time: b.time, guests: String(b.guests) });
+    setModalOpen(false); // Force re-render just in case
+    setTimeout(() => setModalOpen(true), 10);
   };
 
   const filtered = rests.filter(r => {
@@ -371,7 +417,10 @@ function CustomerApp({ user, onLogout }) {
                 <div className="booking-detail-item"><IconUsers size={16} /> {b.guests} Geusts</div>
                 <div className="booking-detail-item"><IconMapPin size={16} /> {b.distance}</div>
               </div>
-              <div className="booking-actions"><button className="btn-secondary" style={{color:'var(--brand-danger)'}}>Cancel</button><button className="btn-secondary">Modify</button></div>
+              <div className="booking-actions">
+                <button className="btn-secondary" style={{color:'var(--brand-danger)'}} onClick={()=>cancelBooking(b.id)}>Cancel</button>
+                <button className="btn-secondary" onClick={()=>openModify(b)}>Modify</button>
+              </div>
             </div>
           ))}
         </div>
@@ -397,12 +446,43 @@ function CustomerApp({ user, onLogout }) {
     <div className="app-container fade-in">
       <div className="scroll-view">
         <div className="bookings-header"><h1 className="bookings-title">Account</h1></div>
-        <div className="profile-header"><div className="profile-avatar"><IconUser size={32} /></div><div className="profile-info"><h2>{user.name}</h2><p>{user.email}</p></div></div>
-        <div className="settings-section" style={{paddingBottom:'40px'}}>
-          <button style={{width:'100%', padding:'16px', background:'var(--bg-secondary)', borderRadius:'var(--radius-md)', fontWeight:'600', color:'var(--brand-danger)'}} onClick={onLogout}>Log Out</button>
+        <div className="profile-header">
+           <div className="profile-avatar"><IconUser size={32} /></div>
+           <div className="profile-info"><h2>{user.name}</h2><p>{user.email}</p></div>
+        </div>
+        
+        <div style={{display:'flex', padding:'0 20px', gap:'12px', marginBottom:'32px'}}>
+           <div style={{flex:1, background:'var(--bg-secondary)', padding:'16px', borderRadius:'16px', textAlign:'center'}}>
+              <h3 style={{fontSize:'1.6rem', fontWeight:'800', marginBottom:'4px'}}>{bookings.length}</h3>
+              <p style={{fontSize:'0.8rem', color:'var(--text-secondary)', fontWeight:'600'}}>Bookings</p>
+           </div>
+           <div style={{flex:1, background:'var(--bg-secondary)', padding:'16px', borderRadius:'16px', textAlign:'center'}}>
+              <h3 style={{fontSize:'1.6rem', fontWeight:'800', marginBottom:'4px'}}>{favs.size}</h3>
+              <p style={{fontSize:'0.8rem', color:'var(--text-secondary)', fontWeight:'600'}}>Saved</p>
+           </div>
+        </div>
+
+        <div className="settings-section">
+          <h3 style={{fontSize:'1.1rem', fontWeight:'700', marginBottom:'16px'}}>Preferences</h3>
+          <div style={{display:'flex', justifyContent:'space-between', padding:'16px 0', borderBottom:'1px solid var(--border-light)'}}>
+            <span style={{fontWeight:'500'}}>Push Notifications</span>
+            <div style={{width:'44px', height:'24px', background:'var(--brand-success)', borderRadius:'12px', position:'relative'}}><div style={{width:'20px', height:'20px', background:'#fff', borderRadius:'50%', position:'absolute', top:'2px', right:'2px'}}></div></div>
+          </div>
+          <div style={{display:'flex', justifyContent:'space-between', padding:'16px 0', borderBottom:'1px solid var(--border-light)'}}>
+            <span style={{fontWeight:'500'}}>Payment Methods</span>
+            <span style={{color:'var(--text-tertiary)'}}>Add +</span>
+          </div>
+          <div style={{display:'flex', justifyContent:'space-between', padding:'16px 0', borderBottom:'1px solid var(--border-light)'}}>
+            <span style={{fontWeight:'500'}}>Dietary Restrictions</span>
+          </div>
+          <div style={{display:'flex', justifyContent:'space-between', padding:'16px 0', borderBottom:'1px solid var(--border-light)', marginBottom:'32px'}}>
+            <span style={{fontWeight:'500'}}>Help & Support</span>
+          </div>
+          <button style={{width:'100%', padding:'16px', background:'var(--bg-secondary)', borderRadius:'var(--radius-md)', fontWeight:'600', color:'var(--brand-danger)'}} onClick={onLogout}>Sign Out</button>
         </div>
       </div>
       <Nav />
+      {modalOpen && <BookingSheet r={sel} data={bData} setData={setBData} onConfirm={confirmBooking} onClose={()=>setModalOpen(false)} />}
     </div>
   );
 }
