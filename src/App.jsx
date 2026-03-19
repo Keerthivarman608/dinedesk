@@ -332,6 +332,9 @@ function CustomerApp({ user, onUpdateUser, onLogout, showToast }) {
   const [bData, setBData] = useState({ date:'2024-11-01', time:'19:00', guests:'2' });
   const [modBooking, setModBooking] = useState(null);
   const [loading, setLoading] = useState(true);
+  
+  // Dummy Preference State
+  const [pushEnabled, setPushEnabled] = useState(true);
 
   // Profile Edit State
   const [profileOpen, setProfileOpen] = useState(false);
@@ -557,20 +560,28 @@ function CustomerApp({ user, onUpdateUser, onLogout, showToast }) {
 
         <div className="settings-section">
           <h3 style={{fontSize:'1.1rem', fontWeight:'700', marginBottom:'16px'}}>Preferences</h3>
-          <div style={{display:'flex', justifyContent:'space-between', padding:'16px 0', borderBottom:'1px solid var(--border-light)'}}>
+          
+          <div onClick={() => { setPushEnabled(!pushEnabled); showToast(pushEnabled ? 'Push notifications disabled' : 'Push notifications enabled!', 'info'); }} style={{display:'flex', justifyContent:'space-between', padding:'16px 0', borderBottom:'1px solid var(--border-light)', cursor:'pointer'}}>
             <span style={{fontWeight:'500'}}>Push Notifications</span>
-            <div style={{width:'44px', height:'24px', background:'var(--brand-success)', borderRadius:'12px', position:'relative'}}><div style={{width:'20px', height:'20px', background:'#fff', borderRadius:'50%', position:'absolute', top:'2px', right:'2px'}}></div></div>
+            <div style={{width:'44px', height:'24px', background: pushEnabled ? 'var(--brand-success)' : 'var(--bg-secondary)', borderRadius:'12px', position:'relative', transition:'0.2s'}}>
+               <div style={{width:'20px', height:'20px', background:'#fff', borderRadius:'50%', position:'absolute', top:'2px', right: pushEnabled ? '2px' : 'calc(100% - 22px)', transition:'0.2s', boxShadow:'0 1px 3px rgba(0,0,0,0.1)'}}></div>
+            </div>
           </div>
-          <div style={{display:'flex', justifyContent:'space-between', padding:'16px 0', borderBottom:'1px solid var(--border-light)'}}>
+          
+          <div onClick={()=>showToast('Payment Integrations would open here!', 'info')} style={{display:'flex', justifyContent:'space-between', padding:'16px 0', borderBottom:'1px solid var(--border-light)', cursor:'pointer'}}>
             <span style={{fontWeight:'500'}}>Payment Methods</span>
-            <span style={{color:'var(--text-tertiary)'}}>Add +</span>
+            <span style={{color:'var(--brand-accent)', fontWeight:'600'}}>Add +</span>
           </div>
-          <div style={{display:'flex', justifyContent:'space-between', padding:'16px 0', borderBottom:'1px solid var(--border-light)'}}>
+          
+          <div onClick={()=>setProfileOpen(true)} style={{display:'flex', justifyContent:'space-between', padding:'16px 0', borderBottom:'1px solid var(--border-light)', cursor:'pointer'}}>
             <span style={{fontWeight:'500'}}>Dietary Restrictions</span>
+            <span style={{color:'var(--text-tertiary)', fontSize:'0.9rem'}}>{user.dietaryrestrictions ? 'Configured' : 'None setup'}</span>
           </div>
-          <div style={{display:'flex', justifyContent:'space-between', padding:'16px 0', borderBottom:'1px solid var(--border-light)', marginBottom:'32px'}}>
+          
+          <div onClick={()=>showToast('Help Center would open here!', 'info')} style={{display:'flex', justifyContent:'space-between', padding:'16px 0', borderBottom:'1px solid var(--border-light)', marginBottom:'32px', cursor:'pointer'}}>
             <span style={{fontWeight:'500'}}>Help & Support</span>
           </div>
+          
           <button style={{width:'100%', padding:'16px', background:'var(--bg-secondary)', borderRadius:'var(--radius-md)', fontWeight:'600', color:'var(--brand-danger)'}} onClick={onLogout}>Sign Out</button>
         </div>
       </div>
