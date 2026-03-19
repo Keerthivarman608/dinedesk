@@ -1,0 +1,11 @@
+node_modules/
+dist/
+.env
+backend/.env
+backend/database.sqlite
+backend/node_modules/
+*.log
+.DS_Store
+android/.gradle/
+android/app/build/
+ios/Pods/
