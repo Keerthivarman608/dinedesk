@@ -45,7 +45,7 @@ export default function App() {
   const renderApp = () => {
     if (!user) return <AuthView onLogin={setUser} showToast={showToast} />;
     if (user.role === 'RESTAURANT') return <OwnerApp user={user} onLogout={()=>setUser(null)} showToast={showToast} />;
-    return <CustomerApp user={user} onLogout={()=>setUser(null)} showToast={showToast} />;
+    return <CustomerApp user={user} onUpdateUser={setUser} onLogout={()=>setUser(null)} showToast={showToast} />;
   };
 
   return (
@@ -101,6 +101,10 @@ function AuthView({ onLogin, showToast }) {
 
   const submit = async (e) => {
     e.preventDefault();
+    if (!email.includes('@') || !email.includes('.')) return showToast('Please enter a valid email address.', 'error');
+    if (password.length < 6) return showToast('Password must be at least 6 characters.', 'error');
+    if (!isLogin && name.trim().length < 2) return showToast('Please enter your full name.', 'error');
+
     setLoading(true);
     const endpoint = isLogin ? '/auth/login' : '/auth/register';
     const body = isLogin ? { email, password } : { name, email, password, role };
@@ -315,7 +319,7 @@ function OwnerApp({ user, onLogout, showToast }) {
 // ==========================================
 // CUSTOMER APP
 // ==========================================
-function CustomerApp({ user, onLogout, showToast }) {
+function CustomerApp({ user, onUpdateUser, onLogout, showToast }) {
   const [view, setView] = useState('home');
   const [rests, setRests] = useState([]);
   const [bookings, setBookings] = useState([]);
@@ -328,6 +332,24 @@ function CustomerApp({ user, onLogout, showToast }) {
   const [bData, setBData] = useState({ date:'2024-11-01', time:'19:00', guests:'2' });
   const [modBooking, setModBooking] = useState(null);
   const [loading, setLoading] = useState(true);
+
+  // Profile Edit State
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [pData, setPData] = useState({ name: user.name, phone: user.phone || '', dietaryRestrictions: user.dietaryrestrictions || '' });
+
+  const saveProfile = async () => {
+    if (pData.name.trim().length < 2) return showToast('Name cannot be empty.', 'error');
+    try {
+      const res = await fetch(`${API}/users/${user.id}`, { method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify({...pData, email: user.email}) });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error);
+      onUpdateUser(json.user);
+      setProfileOpen(false);
+      showToast('Profile successfully updated!', 'success');
+    } catch(err) {
+      showToast('Failed to save profile.', 'error');
+    }
+  };
 
   const fetchAll = async () => {
     try {
@@ -515,7 +537,11 @@ function CustomerApp({ user, onLogout, showToast }) {
         <div className="bookings-header"><h1 className="bookings-title">Account</h1></div>
         <div className="profile-header">
            <div className="profile-avatar"><IconUser size={32} /></div>
-           <div className="profile-info"><h2>{user.name}</h2><p>{user.email}</p></div>
+           <div className="profile-info">
+             <h2 style={{display:'flex', alignItems:'center', gap:'8px'}}>{user.name} <button onClick={()=>setProfileOpen(true)} style={{fontSize:'0.8rem', color:'var(--brand-accent)', background:'none', fontWeight:'700', padding:'4px 8px'}}>Edit</button></h2>
+             <p>{user.email}</p>
+             {user.phone && <p style={{fontSize:'0.85rem', color:'var(--text-secondary)', marginTop:'2px'}}>{user.phone}</p>}
+           </div>
         </div>
         
         <div style={{display:'flex', padding:'0 20px', gap:'12px', marginBottom:'32px'}}>
@@ -550,6 +576,19 @@ function CustomerApp({ user, onLogout, showToast }) {
       </div>
       <Nav />
       {modalOpen && <BookingSheet r={sel} data={bData} setData={setBData} onConfirm={confirmBooking} onClose={()=>setModalOpen(false)} />}
+      
+      {profileOpen && (
+        <div className="modal-overlay" onClick={()=>setProfileOpen(false)}>
+          <div className="modal-sheet slide-up" onClick={e=>e.stopPropagation()}>
+            <div className="modal-sheet-handle" />
+            <div className="modal-header"><h2 className="modal-title">Edit Profile</h2><button className="modal-close-btn" onClick={()=>setProfileOpen(false)}><IconX size={18} /></button></div>
+            <div className="form-group"><label className="form-label">Full Name</label><input className="form-input" value={pData.name} onChange={e=>setPData({...pData,name:e.target.value})} /></div>
+            <div className="form-group"><label className="form-label">Phone Number</label><input type="tel" className="form-input" placeholder="(555) 123-4567" value={pData.phone} onChange={e=>setPData({...pData,phone:e.target.value})} /></div>
+            <div className="form-group"><label className="form-label">Dietary Restrictions</label><textarea className="form-input" rows="2" placeholder="e.g. Vegetarian, Peanut Allergy" value={pData.dietaryRestrictions} onChange={e=>setPData({...pData,dietaryRestrictions:e.target.value})} /></div>
+            <button className="btn-primary mt-4" onClick={saveProfile}>Save Changes</button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

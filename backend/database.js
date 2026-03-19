@@ -56,9 +56,15 @@ const db = {
           guests INTEGER,
           status TEXT,
           notes TEXT,
-          createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
       `);
+      
+      // Auto-migrate new columns for v2 Profiles
+      try {
+        await pool.query('ALTER TABLE users ADD COLUMN phone TEXT');
+        await pool.query('ALTER TABLE users ADD COLUMN dietaryRestrictions TEXT');
+      } catch(e) { /* columns already exist */ }
+
       console.log('✅ PostgreSQL Schema initialized successfully');
     } catch (err) {
       console.error('❌ Error initializing schema:', err.message);

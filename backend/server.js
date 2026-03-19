@@ -89,6 +89,23 @@ app.post('/api/auth/google', async (req, res) => {
   }
 });
 
+// Update User Profile
+app.put('/api/users/:id', async (req, res) => {
+  try {
+    const { name, email, phone, dietaryRestrictions } = req.body;
+    await db.query(
+      'UPDATE users SET name = $1, email = $2, phone = $3, dietaryrestrictions = $4 WHERE id = $5',
+      [name, email, phone || '', dietaryRestrictions || '', req.params.id]
+    );
+    // Return updated user object
+    const result = await db.query('SELECT id, name, email, role, phone, dietaryrestrictions FROM users WHERE id = $1', [req.params.id]);
+    res.json({ success: true, user: result.rows[0] });
+  } catch (err) {
+    if (err.message.includes('unique constraint')) return res.status(400).json({ error: 'Email already exists' });
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ==========================================
 // RESTAURANT ROUTES
 // ==========================================
