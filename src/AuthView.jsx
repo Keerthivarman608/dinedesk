@@ -38,12 +38,27 @@ export default function AuthView({ onLogin, showToast }) {
     } finally { setLoading(false); }
   };
 
+  const [errors, setErrors] = useState({});
+
   const submit = async (e) => {
     e.preventDefault();
-    if (!email.includes('@') || !email.includes('.')) return showToast('Please enter a valid email address.', 'error');
-    if (password.length < 6) return showToast('Password must be at least 6 characters.', 'error');
-    if (!isLogin && name.trim().length < 2) return showToast('Please enter your full name.', 'error');
+    const newErrors = {};
 
+    if (!email.trim()) newErrors.email = true;
+    else if (!email.includes('@') || !email.includes('.')) newErrors.email = true;
+    if (!password.trim()) newErrors.password = true;
+    else if (password.length < 6) newErrors.password = true;
+    if (!isLogin && name.trim().length < 2) newErrors.name = true;
+
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
+      if (newErrors.name) return showToast('Please enter your full name.', 'error');
+      if (newErrors.email) return showToast('Please enter a valid email address.', 'error');
+      if (newErrors.password) return showToast('Password must be at least 6 characters.', 'error');
+      return;
+    }
+
+    setErrors({});
     setLoading(true);
     try {
       const json = isLogin
@@ -57,23 +72,25 @@ export default function AuthView({ onLogin, showToast }) {
     } finally { setLoading(false); }
   };
 
+  const errorBorder = { borderColor: 'var(--brand-danger)', boxShadow: '0 0 0 2px rgba(239,68,68,0.2)' };
+
   return (
-    <div className="app-container fade-in" style={{padding: '40px 20px', justifyContent:'center'}}>
+    <div className="app-container fade-in" style={{padding: '40px 24px', justifyContent:'center'}}>
       {loading && <div className="spinner" style={{position:'absolute', top:20, right:20, margin:0, width:24, height:24}} />}
       <h1 className="home-title" style={{textAlign:'center', marginBottom:'8px'}}>{isLogin ? 'Welcome Back' : 'Create Account'}</h1>
       <p style={{textAlign:'center', color:'var(--text-secondary)', marginBottom:'32px'}}>Sign in to DineDesk to continue.</p>
       
       {!isLogin && (
         <div style={{display:'flex', gap:'12px', marginBottom:'24px'}}>
-          <button type="button" className="btn-secondary" style={{flex:1, background: role==='CUSTOMER'?'var(--brand-primary)':'var(--bg-secondary)', color: role==='CUSTOMER'?'#fff':'#000', padding:'12px', borderRadius:'12px', fontWeight:'700'}} onClick={()=>setRole('CUSTOMER')}>Diner</button>
-          <button type="button" className="btn-secondary" style={{flex:1, background: role==='RESTAURANT'?'var(--brand-primary)':'var(--bg-secondary)', color: role==='RESTAURANT'?'#fff':'#000', padding:'12px', borderRadius:'12px', fontWeight:'700'}} onClick={()=>setRole('RESTAURANT')}>Restaurant</button>
+          <button type="button" className="btn-secondary" style={{flex:1, background: role==='CUSTOMER'?'var(--brand-primary)':'var(--bg-secondary)', color: role==='CUSTOMER'?'#fff':'var(--text-primary)', padding:'12px', borderRadius:'12px', fontWeight:'700'}} onClick={()=>setRole('CUSTOMER')}>Diner</button>
+          <button type="button" className="btn-secondary" style={{flex:1, background: role==='RESTAURANT'?'var(--brand-primary)':'var(--bg-secondary)', color: role==='RESTAURANT'?'#fff':'var(--text-primary)', padding:'12px', borderRadius:'12px', fontWeight:'700'}} onClick={()=>setRole('RESTAURANT')}>Restaurant</button>
         </div>
       )}
 
-      <form onSubmit={submit}>
-        {!isLogin && <div className="form-group"><label className="form-label">Full Name / Business Name</label><input required className="form-input" value={name} onChange={e=>setName(e.target.value)} /></div>}
-        <div className="form-group"><label className="form-label">Email Address</label><input required type="email" className="form-input" value={email} onChange={e=>setEmail(e.target.value)} /></div>
-        <div className="form-group"><label className="form-label">Password</label><input required type="password" className="form-input" value={password} onChange={e=>setPassword(e.target.value)} /></div>
+      <form onSubmit={submit} noValidate>
+        {!isLogin && <div className="form-group"><label className="form-label">Full Name / Business Name</label><input className="form-input" style={errors.name ? errorBorder : {}} placeholder="Enter your name" value={name} onChange={e=>{setName(e.target.value); setErrors(p=>({...p, name:false}));}} /></div>}
+        <div className="form-group"><label className="form-label">Email Address</label><input type="email" className="form-input" style={errors.email ? errorBorder : {}} placeholder="you@example.com" value={email} onChange={e=>{setEmail(e.target.value); setErrors(p=>({...p, email:false}));}} /></div>
+        <div className="form-group"><label className="form-label">Password</label><input type="password" className="form-input" style={errors.password ? errorBorder : {}} placeholder="Min. 6 characters" value={password} onChange={e=>{setPassword(e.target.value); setErrors(p=>({...p, password:false}));}} /></div>
         <button className="btn-primary" type="submit" disabled={loading} style={{marginTop:'24px'}}>{loading ? 'Connecting...' : (isLogin ? 'Sign In' : 'Sign Up')}</button>
       </form>
 
