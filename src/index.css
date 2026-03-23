@@ -57,6 +57,8 @@ body {
   flex-direction: column;
   box-shadow: 0 0 20px rgba(0,0,0,0.05);
   overflow: hidden;
+  padding-left: env(safe-area-inset-left, 0px);
+  padding-right: env(safe-area-inset-right, 0px);
 }
 
 @media (max-width: 480px) {
@@ -115,7 +117,7 @@ input, select {
 }
 
 .home-header {
-  padding: 24px 20px 16px;
+  padding: 24px 24px 16px;
   display: flex;
   justify-content: space-between;
   align-items: flex-end;
@@ -176,18 +178,18 @@ input, select {
   backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
   border-top: 1px solid var(--border-light);
   display: flex; justify-content: space-around;
-  padding: 12px 16px 24px;
+  padding: 12px 20px calc(24px + env(safe-area-inset-bottom, 0px));
 }
 .nav-item { display: flex; flex-direction: column; align-items: center; gap: 4px; color: var(--text-tertiary); transition: color 0.2s; }
 .nav-item.active { color: var(--brand-primary); }
 .nav-label { font-size: 0.7rem; font-weight: 600; }
 
 /* Feed / Cards */
-.categories-container { display: flex; overflow-x: auto; gap: 12px; padding: 0 20px 16px; scroll-padding-inline: 20px; }
+.categories-container { display: flex; overflow-x: auto; gap: 12px; padding: 0 24px 16px; scroll-padding-inline: 24px; }
 .category-pill { padding: 8px 16px; border-radius: var(--radius-pill); background: var(--bg-secondary); font-size: 0.9rem; font-weight: 600; color: var(--text-secondary); white-space: nowrap; }
 .category-pill.active { background: var(--brand-primary); color: #fff; }
 
-.feed-list { padding: 0 20px 20px; display: flex; flex-direction: column; gap: 24px; }
+.feed-list { padding: 0 24px 20px; display: flex; flex-direction: column; gap: 24px; }
 .rest-card { cursor: pointer; transition: transform 0.2s; }
 .rest-card:active { transform: scale(0.98); }
 .rest-card-image-wrap { position: relative; border-radius: var(--radius-lg); overflow: hidden; margin-bottom: 12px; height: 180px; }
@@ -222,14 +224,14 @@ input, select {
 .modal-close-btn { color: var(--text-secondary); }
 
 /* Bookings Screen */
-.bookings-header { padding: 24px 20px 16px; }
+.bookings-header { padding: 24px 24px 16px; }
 .bookings-title { font-size: 1.8rem; font-weight: 800; letter-spacing: -0.5px; }
-.tabs { display: flex; padding: 0 20px; border-bottom: 1px solid var(--border-light); margin-bottom: 24px; }
+.tabs { display: flex; padding: 0 24px; border-bottom: 1px solid var(--border-light); margin-bottom: 24px; }
 .tab { flex: 1; padding: 12px; text-align: center; font-weight: 600; color: var(--text-secondary); position: relative; }
 .tab.active { color: var(--brand-primary); }
 .tab.active::after { content: ''; position: absolute; bottom: -1px; left: 0; right: 0; height: 2px; background: var(--brand-primary); }
 
-.booking-card { margin: 0 20px 20px; border: 1px solid var(--border-light); border-radius: var(--radius-lg); padding: 20px; }
+.booking-card { margin: 0 24px 20px; border: 1px solid var(--border-light); border-radius: var(--radius-lg); padding: 20px; }
 .booking-status { font-size: 0.8rem; font-weight: 700; color: var(--brand-success); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
 .booking-rest-name { font-size: 1.2rem; font-weight: 800; margin-bottom: 16px; }
 .booking-details-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px; }
@@ -244,15 +246,15 @@ input, select {
 .success-desc { font-size: 1rem; color: var(--text-secondary); margin-bottom: 40px; line-height: 1.5; }
 
 /* Search */
-.search-input-wrap { position: relative; margin: 0 20px 20px; }
+.search-input-wrap { position: relative; margin: 0 24px 20px; }
 .search-icon { position: absolute; left: 16px; top: 14px; color: var(--text-tertiary); pointer-events: none; }
 .search-input { width: 100%; padding: 14px 16px 14px 44px; background: var(--bg-secondary); border: none; border-radius: var(--radius-md); font-size: 1rem; }
 .search-input:focus { background: #fff; box-shadow: 0 0 0 2px var(--brand-accent); }
 
 /* Profile */
-.profile-header { display: flex; align-items: center; gap: 16px; padding: 0 20px 32px; border-bottom: 1px solid var(--border-light); margin-bottom: 24px; }
+.profile-header { display: flex; align-items: center; gap: 16px; padding: 0 24px 32px; border-bottom: 1px solid var(--border-light); margin-bottom: 24px; }
 .profile-avatar { width: 64px; height: 64px; border-radius: 50%; background: var(--bg-secondary); display: flex; align-items: center; justify-content: center; color: var(--text-secondary); }
-.settings-section { padding: 0 20px; margin-bottom: 32px; }
+.settings-section { padding: 0 24px; margin-bottom: 32px; }
 
 /* Toast & Loaders */
 .toast-container { position: fixed; top: 24px; left: 50%; transform: translateX(-50%); z-index: 9999; padding: 14px 24px; border-radius: var(--radius-lg); font-weight: 600; color: #fff; box-shadow: var(--shadow-lg); font-size: 0.95rem; white-space: nowrap; max-width: 90vw; animation: slideDown 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
