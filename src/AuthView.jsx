@@ -78,7 +78,7 @@ export default function AuthView({ onLogin, showToast }) {
     <div className="app-container fade-in" style={{padding: '40px 24px', justifyContent:'center'}}>
       {loading && <div className="spinner" style={{position:'absolute', top:20, right:20, margin:0, width:24, height:24}} />}
       <h1 className="home-title" style={{textAlign:'center', marginBottom:'8px'}}>{isLogin ? 'Welcome Back' : 'Create Account'}</h1>
-      <p style={{textAlign:'center', color:'var(--text-secondary)', marginBottom:'32px'}}>Sign in to DineDesk to continue.</p>
+      <p style={{textAlign:'center', color:'var(--text-secondary)', marginBottom:'32px'}}>{isLogin ? 'Sign in to DineDesk to continue.' : 'Join DineDesk to get started.'}</p>
       
       {!isLogin && (
         <div style={{display:'flex', gap:'12px', marginBottom:'24px'}}>
@@ -89,8 +89,8 @@ export default function AuthView({ onLogin, showToast }) {
 
       <form onSubmit={submit} noValidate>
         {!isLogin && <div className="form-group"><label className="form-label">Full Name / Business Name</label><input className="form-input" style={errors.name ? errorBorder : {}} placeholder="Enter your name" value={name} onChange={e=>{setName(e.target.value); setErrors(p=>({...p, name:false}));}} /></div>}
-        <div className="form-group"><label className="form-label">Email Address</label><input type="email" className="form-input" style={errors.email ? errorBorder : {}} placeholder="you@example.com" value={email} onChange={e=>{setEmail(e.target.value); setErrors(p=>({...p, email:false}));}} /></div>
-        <div className="form-group"><label className="form-label">Password</label><input type="password" className="form-input" style={errors.password ? errorBorder : {}} placeholder="Min. 6 characters" value={password} onChange={e=>{setPassword(e.target.value); setErrors(p=>({...p, password:false}));}} /></div>
+        <div className="form-group"><label className="form-label">Email Address</label><input type="email" className="form-input" style={errors.email ? errorBorder : {}} placeholder={isLogin ? 'Enter your email' : 'you@example.com'} value={email} onChange={e=>{setEmail(e.target.value); setErrors(p=>({...p, email:false}));}} /></div>
+        <div className="form-group"><label className="form-label">Password</label><input type="password" className="form-input" style={errors.password ? errorBorder : {}} placeholder={isLogin ? 'Enter your password' : 'Min. 6 characters'} value={password} onChange={e=>{setPassword(e.target.value); setErrors(p=>({...p, password:false}));}} /></div>
         <button className="btn-primary" type="submit" disabled={loading} style={{marginTop:'24px'}}>{loading ? 'Connecting...' : (isLogin ? 'Sign In' : 'Sign Up')}</button>
       </form>
 
