@@ -98,13 +98,6 @@ export default function AuthView({ onLogin, showToast }) {
           {isLogin ? "Sign Up" : "Sign In"}
         </span>
       </p>
-
-      {/* Helper quick logins for testing */}
-      <div style={{marginTop:'40px', padding:'20px', border:'1px dashed var(--border-dark)', borderRadius:'12px'}}>
-        <p style={{fontSize:'0.75rem', fontWeight:'700', color:'var(--text-tertiary)', textTransform:'uppercase', marginBottom:'12px'}}>Developer Quick Logins</p>
-        <button className="btn-secondary" style={{width:'100%', marginBottom:'8px'}} onClick={()=>{setEmail('alice@test.com'); setPassword('password123'); setIsLogin(true);}}>Login as Customer (Alice)</button>
-        <button className="btn-secondary" style={{width:'100%'}} onClick={()=>{setEmail('tanaka@sakura.com'); setPassword('password123'); setIsLogin(true);}}>Login as Owner (Chef Tanaka)</button>
-      </div>
     </div>
   );
 }
