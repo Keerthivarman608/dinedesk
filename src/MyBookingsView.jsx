@@ -1,6 +1,27 @@
-import { CalendarClock, MapPin, Users, TicketCheck } from 'lucide-react';
+import { CalendarClock, MapPin, Users, TicketCheck, Trash2 } from 'lucide-react';
+import { useState, useEffect } from 'react';
 
-export default function MyBookingsView({ bookings }) {
+export default function MyBookingsView({ bookings: initialBookings }) {
+  const [bookings, setBookings] = useState(initialBookings);
+
+  useEffect(() => {
+    setBookings(initialBookings);
+  }, [initialBookings]);
+
+  const handleCancel = (id) => {
+    if (window.confirm("Are you sure you want to cancel this booking?")) {
+      setBookings(bookings.filter(b => b.id !== id));
+    }
+  };
+
+  const handleModify = (id) => {
+    alert(`Modifying booking ${id} - This would open the edit modal.`);
+  };
+
+  const handleDirections = (restaurantName) => {
+    alert(`Opening maps for ${restaurantName}...`);
+  };
+
   return (
     <div className="bookings-view fade-in">
       <header className="home-header">
@@ -43,9 +64,16 @@ export default function MyBookingsView({ bookings }) {
                 </div>
                 
                 <div className="booking-actions">
-                  <button className="btn btn-outline" style={{width: '100%'}}>Modify</button>
-                  <button className="btn btn-primary" style={{width: '100%'}}>Directions</button>
+                  <button className="btn btn-outline" style={{width: '100%'}} onClick={() => handleModify(booking.id)}>Modify</button>
+                  <button className="btn btn-primary" style={{width: '100%'}} onClick={() => handleDirections(booking.restaurant.name)}>Directions</button>
                 </div>
+                <button 
+                  className="btn btn-ghost" 
+                  style={{width: '100%', marginTop: '0.5rem', display: 'flex', justifyContent: 'center', gap: '8px', color: '#ff4d4f'}}
+                  onClick={() => handleCancel(booking.id)}
+                >
+                  <Trash2 size={16} /> Cancel Booking
+                </button>
               </div>
             ))}
           </div>

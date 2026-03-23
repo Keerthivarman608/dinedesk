@@ -56,3 +56,36 @@ export const categories = [
   { id: 4, name: "American", icon: "hamburger" },
   { id: 5, name: "Indian", icon: "fire" }
 ];
+
+const API_BASE = 'http://10.0.2.2:3000/api';
+
+export const fetchRestaurants = async () => {
+  try {
+    const res = await fetch(`${API_BASE}/restaurants`);
+    if (!res.ok) throw new Error('API failed');
+    return await res.json();
+  } catch (error) {
+    console.warn("Using offline fallback for restaurants", error);
+    return restaurants; // fallback to local mock data
+  }
+};
+
+export const fetchRestaurantById = async (id) => {
+  const all = await fetchRestaurants();
+  return all.find(r => r.id.toString() === id.toString()) || all[0];
+};
+
+export const createBooking = async (bookingData) => {
+  try {
+    const res = await fetch(`${API_BASE}/bookings`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(bookingData)
+    });
+    if (!res.ok) throw new Error('API failed');
+    return await res.json();
+  } catch (error) {
+    console.warn("Using offline mock for booking creation", error);
+    return { success: true, mock: true }; // fallback mock success
+  }
+};

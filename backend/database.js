@@ -56,6 +56,7 @@ const db = {
           guests INTEGER,
           status TEXT,
           notes TEXT,
+          createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
       `);
       
@@ -64,6 +65,12 @@ const db = {
         await pool.query('ALTER TABLE users ADD COLUMN phone TEXT');
         await pool.query('ALTER TABLE users ADD COLUMN dietaryRestrictions TEXT');
       } catch(e) { /* columns already exist */ }
+
+      // Performance indexes
+      try {
+        await pool.query('CREATE INDEX IF NOT EXISTS idx_bookings_userId ON bookings(userId)');
+        await pool.query('CREATE INDEX IF NOT EXISTS idx_bookings_restaurantId ON bookings(restaurantId)');
+      } catch(e) { /* indexes already exist */ }
 
       console.log('✅ PostgreSQL Schema initialized successfully');
     } catch (err) {

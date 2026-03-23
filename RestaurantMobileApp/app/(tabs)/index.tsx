@@ -2,69 +2,60 @@ import { View, Text, StyleSheet, Dimensions, FlatList, ImageBackground, Touchabl
 import { useState, useEffect } from 'react';
 import { Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { fetchRestaurants, createBooking } from '../../constants/Data';
+
+interface Restaurant {
+  id: number;
+  name: string;
+  cuisine: string;
+  rating: number;
+  reviews: number;
+  distance: string;
+  image: string;
+  about: string;
+  priceRange: string;
+  tags?: string[];
+}
 
 // Get exact window dimensions for the paging scroll
 const { width, height } = Dimensions.get('window');
 
 export default function HomeScreen() {
   const router = useRouter();
-  const [restaurants, setRestaurants] = useState([]);
+  const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
   const [loading, setLoading] = useState(true);
   
   const [bookingModalVisible, setBookingModalVisible] = useState(false);
-  const [selectedRest, setSelectedRest] = useState(null);
+  const [selectedRest, setSelectedRest] = useState<Restaurant | null>(null);
   const [guests, setGuests] = useState('2');
   const [time, setTime] = useState('19:00');
 
   useEffect(() => {
-    // Fetch from our local Express backend!
-    fetch('http://10.0.2.2:3000/api/restaurants')
-      .then(res => res.json())
-      .then(data => {
-        setRestaurants(data);
-        setLoading(false);
-      })
-      .catch(err => {
-        console.error('Fetch error:', err);
-        // Fallback or handle error (Simulator uses localhost, Android Emulator uses 10.0.2.2)
-        // Set empty array to avoid crash
-        setRestaurants([]);
-        setLoading(false);
-      });
+    fetchRestaurants().then(data => {
+      setRestaurants(data);
+      setLoading(false);
+    });
   }, []);
 
-  const handleBookPress = (restaurant) => {
+  const handleBookPress = (restaurant: Restaurant) => {
     setSelectedRest(restaurant);
     setBookingModalVisible(true);
   };
 
-  const confirmBooking = () => {
-    // Simple POST to backend
-    fetch('http://10.0.2.2:3000/api/bookings', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        restaurantId: selectedRest.id,
-        userId: 'USER123',
-        date: '2024-10-24',
-        time: time,
-        guests: parseInt(guests)
-      })
-    })
-    .then(res => res.json())
-    .then(data => {
-      setBookingModalVisible(false);
-      router.push('/booking/success');
-    })
-    .catch(err => {
-      console.error(err);
-      // fallback mock success for showcase
-      setBookingModalVisible(false);
-      router.push('/booking/success');
+  const confirmBooking = async () => {
+    if (!selectedRest) return;
+    await createBooking({
+      restaurantId: selectedRest.id,
+      userId: 'USER123',
+      date: '2024-10-24',
+      time: time,
+      guests: parseInt(guests)
     });
+    setBookingModalVisible(false);
+    router.push('/booking/success');
   };
 
-  const renderItem = ({ item }) => (
+  const renderItem = ({ item }: { item: Restaurant }) => (
     <View style={styles.pageContainer}>
       <ImageBackground 
         source={{ uri: item.image }} 
@@ -76,7 +67,7 @@ export default function HomeScreen() {
             <Text style={styles.title}>{item.name}</Text>
             
             <View style={styles.tagsRow}>
-              {item.tags?.map((t, idx) => (
+              {item.tags?.map((t: string, idx: number) => (
                 <View key={idx} style={styles.tag}>
                   <Text style={styles.tagText}>{t}</Text>
                 </View>
@@ -171,7 +162,7 @@ const styles = StyleSheet.create({
   infoContainer: { padding: 24, paddingBottom: 40 },
   title: { fontSize: 36, fontWeight: '900', color: '#FFF', letterSpacing: 1, marginBottom: 16, textShadowColor: 'rgba(0,240,255,0.5)', textShadowOffset: { width: 0, height: 2 }, textShadowRadius: 10 },
   tagsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12 },
-  tag: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.15)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, backdropFilter: 'blur(10px)' },
+  tag: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.15)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20 } as any,
   tagText: { color: '#FFF', fontSize: 13, fontWeight: '600' },
   description: { color: 'rgba(255,255,255,0.9)', fontSize: 15, lineHeight: 22, marginBottom: 16 },
   metaData: { color: '#00F0FF', fontSize: 13, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 24 },

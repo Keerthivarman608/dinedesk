@@ -1,18 +1,44 @@
-import { useState } from 'react';
-import { ArrowLeft, Star, MapPin, Clock, CheckCircle } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { ArrowLeft, Star, MapPin, Clock, CheckCircle, AlertCircle } from 'lucide-react';
 
 export default function RestaurantDetailView({ restaurant, onBack, onBook }) {
   const [date, setDate] = useState('');
   const [time, setTime] = useState('');
   const [guests, setGuests] = useState('2');
+  const [error, setError] = useState('');
+  const [availableTimes, setAvailableTimes] = useState([]);
+
+  useEffect(() => {
+    if (date) {
+      const day = new Date(date).getDay();
+      if (day === 0 || day === 6) { 
+        setAvailableTimes(['17:00', '18:00', '19:00', '20:00', '21:00', '22:00']);
+      } else { 
+        setAvailableTimes(['18:00', '19:00', '20:30', '21:00']);
+      }
+      setTime('');
+      setError('');
+    } else {
+      setAvailableTimes([]);
+    }
+  }, [date]);
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (date && time && guests) {
-      onBook({ date, time, guests });
-    } else {
-      alert("Please fill in all booking details");
+    if (!date) {
+      setError("Please select a date.");
+      return;
     }
+    if (!time) {
+      setError("Please select an available time.");
+      return;
+    }
+    if (!guests) {
+      setError("Please specify the number of guests.");
+      return;
+    }
+    setError('');
+    onBook({ date, time, guests });
   };
 
   return (
@@ -53,6 +79,11 @@ export default function RestaurantDetailView({ restaurant, onBack, onBook }) {
 
         <div className="booking-section">
           <h3 className="section-title">Reserve a Table</h3>
+          {error && (
+            <div className="error-message" style={{ color: '#ff4d4f', display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '1rem', padding: '0.5rem', backgroundColor: 'rgba(255, 77, 79, 0.1)', borderRadius: '8px' }}>
+              <AlertCircle size={16} /> <span className="text-caption">{error}</span>
+            </div>
+          )}
           <form onSubmit={handleSubmit} className="booking-form">
             <div className="form-group">
               <label className="text-caption">Date</label>
@@ -69,12 +100,11 @@ export default function RestaurantDetailView({ restaurant, onBack, onBook }) {
             <div className="form-row">
               <div className="form-group">
                 <label className="text-caption">Time</label>
-                <select className="input-field select-field" required value={time} onChange={(e) => setTime(e.target.value)}>
-                  <option value="" disabled>Select</option>
-                  <option value="18:00">6:00 PM</option>
-                  <option value="19:00">7:00 PM</option>
-                  <option value="20:00">8:00 PM</option>
-                  <option value="21:00">9:00 PM</option>
+                <select className="input-field select-field" required value={time} onChange={(e) => { setTime(e.target.value); setError(''); }} disabled={!date}>
+                  <option value="" disabled>{date ? "Select a time" : "Select date first"}</option>
+                  {availableTimes.map(t => (
+                    <option key={t} value={t}>{t}</option>
+                  ))}
                 </select>
               </div>
               <div className="form-group">

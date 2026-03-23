@@ -1,15 +1,26 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, Alert, Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { useState, useEffect, useCallback } from 'react';
 
+interface Booking {
+  id: string;
+  restaurantName: string;
+  status: string;
+  distance: string;
+  date: string;
+  time: string;
+  guests: number;
+  notes?: string;
+}
+
 export default function BookingsScreen() {
-  const [bookings, setBookings] = useState([]);
+  const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
   const fetchBookings = () => {
-    fetch('http://10.0.2.2:3000/api/bookings/USER123')
+    fetch('http://10.0.2.2:3000/api/bookings/user/USER123')
       .then(res => res.json())
       .then(data => {
         setBookings(Array.isArray(data) ? data : []);
@@ -33,6 +44,24 @@ export default function BookingsScreen() {
     fetchBookings();
   }, []);
 
+  const handleAbort = (booking: Booking) => {
+    Alert.alert('Cancel Reservation', `Cancel your booking at ${booking.restaurantName}?`, [
+      { text: 'Keep It', style: 'cancel' },
+      { text: 'Cancel', style: 'destructive', onPress: () => {
+        fetch(`http://10.0.2.2:3000/api/bookings/${booking.id}/status`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status: 'Cancelled' }),
+        }).then(() => fetchBookings()).catch(console.error);
+      }},
+    ]);
+  };
+
+  const handleRoute = (booking: Booking) => {
+    const query = encodeURIComponent(booking.restaurantName);
+    Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${query}`);
+  };
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
@@ -54,12 +83,12 @@ export default function BookingsScreen() {
             <Text style={styles.emptyText}>Swipe through the feed to secure a neon table.</Text>
           </View>
         ) : (
-          bookings.map(booking => (
+          bookings.map((booking: Booking) => (
             <View key={booking.id} style={styles.bookingCard}>
               <View style={styles.cardHeader}>
                 <Text style={styles.restaurantName}>{booking.restaurantName}</Text>
-                <View style={styles.statusBadge}>
-                  <Text style={styles.statusText}>{booking.status}</Text>
+                <View style={[styles.statusBadge, booking.status === 'Cancelled' && { backgroundColor: 'rgba(255,0,85,0.1)' }]}>
+                  <Text style={[styles.statusText, booking.status === 'Cancelled' && { color: '#FF0055' }]}>{booking.status}</Text>
                 </View>
               </View>
 
@@ -82,14 +111,16 @@ export default function BookingsScreen() {
                 </View>
               </View>
 
-              <View style={styles.actionsRow}>
-                <TouchableOpacity style={styles.btnOutline}>
-                  <Text style={styles.btnOutlineText}>ABORT</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.btnPrimary}>
-                  <Text style={styles.btnPrimaryText}>INIT ROUTE</Text>
-                </TouchableOpacity>
-              </View>
+              {booking.status !== 'Cancelled' && (
+                <View style={styles.actionsRow}>
+                  <TouchableOpacity style={styles.btnOutline} onPress={() => handleAbort(booking)}>
+                    <Text style={styles.btnOutlineText}>ABORT</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.btnPrimary} onPress={() => handleRoute(booking)}>
+                    <Text style={styles.btnPrimaryText}>INIT ROUTE</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
             </View>
           ))
         )}

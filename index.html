@@ -2,13 +2,27 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://accounts.google.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: https://* blob:; connect-src 'self' https://*;">
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="manifest" href="/manifest.json" />
-    <meta name="theme-color" content="#ffffff" />
+    <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#0A0A0A" media="(prefers-color-scheme: dark)" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <script src="https://accounts.google.com/gsi/client" async defer></script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="Book the best restaurants directly from your phone." />
-    <title>DineDesk</title>
+    <meta name="description" content="Book the best restaurants directly from your phone. Discover, reserve, and manage dining experiences with DineDesk." />
+    <!-- Open Graph -->
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="DineDesk — Reserve Your Perfect Table" />
+    <meta property="og:description" content="Discover top restaurants and book tables instantly with DineDesk." />
+    <meta property="og:url" content="https://dinedesk.onrender.com" />
+    <meta property="og:image" content="https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=1200&h=630&fit=crop" />
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="DineDesk — Reserve Your Perfect Table" />
+    <meta name="twitter:description" content="Discover top restaurants and book tables instantly." />
+    <title>DineDesk — Reserve Your Perfect Table</title>
     <script>
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {

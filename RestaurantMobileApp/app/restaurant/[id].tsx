@@ -1,23 +1,52 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ImageBackground, TextInput } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ImageBackground, TextInput, ActivityIndicator } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
-import { restaurants } from '../../constants/Data';
-import { useState } from 'react';
+import { fetchRestaurantById } from '../../constants/Data';
+import { useState, useEffect } from 'react';
+
+interface Restaurant {
+  id: number;
+  name: string;
+  cuisine: string;
+  rating: number;
+  reviews: number;
+  distance: string;
+  image: string;
+  about: string;
+  priceRange: string;
+  tags?: string[];
+}
 
 export default function RestaurantDetailScreen() {
   const { id } = useLocalSearchParams();
   const router = useRouter();
   
-  const restaurant = restaurants.find(r => r.id.toString() === id) || restaurants[0];
+  const [restaurant, setRestaurant] = useState<Restaurant | null>(null);
+  const [loading, setLoading] = useState(true);
 
   const [date, setDate] = useState('2024-10-24'); // Simple controlled strings for demo
   const [time, setTime] = useState('19:00');
   const [guests, setGuests] = useState('2');
 
+  useEffect(() => {
+    fetchRestaurantById(id).then(data => {
+      setRestaurant(data);
+      setLoading(false);
+    });
+  }, [id]);
+
   const handleBook = () => {
     // In production, sync to global state or backend
     router.push('/booking/success');
   };
+
+  if (loading || !restaurant) {
+    return (
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+        <ActivityIndicator size="large" color="#FF6B6B" />
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>

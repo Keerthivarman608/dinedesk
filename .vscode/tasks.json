@@ -1,0 +1,17 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"type": "npm",
+			"script": "start",
+			"path": "RestaurantMobileApp",
+			"problemMatcher": [],
+			"label": "npm: start - RestaurantMobileApp",
+			"detail": "expo start",
+			"group": {
+				"kind": "build",
+				"isDefault": true
+			}
+		}
+	]
+}
