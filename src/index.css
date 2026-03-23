@@ -113,16 +113,16 @@ input, select {
 .scroll-view {
   flex: 1;
   overflow-y: auto;
-  padding-bottom: 90px;
+  padding-bottom: 100px;
 }
 
 .home-header {
-  padding: 24px 24px 16px;
+  padding: 48px 24px 20px;
   display: flex;
   justify-content: space-between;
   align-items: flex-end;
 }
-.home-greeting { font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 4px; font-weight: 500; }
+.home-greeting { font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 6px; font-weight: 500; }
 .home-title { font-size: 1.8rem; font-weight: 800; letter-spacing: -0.5px; }
 
 .header-icon-btn {
@@ -185,11 +185,11 @@ input, select {
 .nav-label { font-size: 0.7rem; font-weight: 600; }
 
 /* Feed / Cards */
-.categories-container { display: flex; overflow-x: auto; gap: 12px; padding: 0 24px 16px; scroll-padding-inline: 24px; }
+.categories-container { display: flex; overflow-x: auto; gap: 12px; padding: 4px 24px 20px; scroll-padding-inline: 24px; }
 .category-pill { padding: 8px 16px; border-radius: var(--radius-pill); background: var(--bg-secondary); font-size: 0.9rem; font-weight: 600; color: var(--text-secondary); white-space: nowrap; }
 .category-pill.active { background: var(--brand-primary); color: #fff; }
 
-.feed-list { padding: 0 24px 20px; display: flex; flex-direction: column; gap: 24px; }
+.feed-list { padding: 4px 24px 24px; display: flex; flex-direction: column; gap: 28px; }
 .rest-card { cursor: pointer; transition: transform 0.2s; }
 .rest-card:active { transform: scale(0.98); }
 .rest-card-image-wrap { position: relative; border-radius: var(--radius-lg); overflow: hidden; margin-bottom: 12px; height: 180px; }
@@ -224,17 +224,17 @@ input, select {
 .modal-close-btn { color: var(--text-secondary); }
 
 /* Bookings Screen */
-.bookings-header { padding: 24px 24px 16px; }
+.bookings-header { padding: 48px 24px 20px; }
 .bookings-title { font-size: 1.8rem; font-weight: 800; letter-spacing: -0.5px; }
-.tabs { display: flex; padding: 0 24px; border-bottom: 1px solid var(--border-light); margin-bottom: 24px; }
+.tabs { display: flex; padding: 0 24px; border-bottom: 1px solid var(--border-light); margin-bottom: 28px; }
 .tab { flex: 1; padding: 12px; text-align: center; font-weight: 600; color: var(--text-secondary); position: relative; }
 .tab.active { color: var(--brand-primary); }
 .tab.active::after { content: ''; position: absolute; bottom: -1px; left: 0; right: 0; height: 2px; background: var(--brand-primary); }
 
-.booking-card { margin: 0 24px 20px; border: 1px solid var(--border-light); border-radius: var(--radius-lg); padding: 20px; }
+.booking-card { margin: 0 24px 24px; border: 1px solid var(--border-light); border-radius: var(--radius-lg); padding: 24px; }
 .booking-status { font-size: 0.8rem; font-weight: 700; color: var(--brand-success); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
 .booking-rest-name { font-size: 1.2rem; font-weight: 800; margin-bottom: 16px; }
-.booking-details-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px; }
+.booking-details-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px; }
 .booking-detail-item { display: flex; align-items: center; gap: 8px; font-size: 0.9rem; color: var(--text-secondary); font-weight: 500; }
 .booking-actions { display: flex; gap: 12px; }
 .booking-actions button { flex: 1; }
@@ -252,7 +252,7 @@ input, select {
 .search-input:focus { background: #fff; box-shadow: 0 0 0 2px var(--brand-accent); }
 
 /* Profile */
-.profile-header { display: flex; align-items: center; gap: 16px; padding: 0 24px 32px; border-bottom: 1px solid var(--border-light); margin-bottom: 24px; }
+.profile-header { display: flex; align-items: center; gap: 20px; padding: 0 24px 32px; border-bottom: 1px solid var(--border-light); margin-bottom: 28px; }
 .profile-avatar { width: 64px; height: 64px; border-radius: 50%; background: var(--bg-secondary); display: flex; align-items: center; justify-content: center; color: var(--text-secondary); }
 .settings-section { padding: 0 24px; margin-bottom: 32px; }
 
@@ -266,7 +266,7 @@ input, select {
 .spinner { width: 36px; height: 36px; border: 4px solid var(--border-light); border-top-color: var(--brand-accent); border-radius: 50%; animation: spin 1s linear infinite; margin: 40px auto; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
-.error-state { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 60px 20px; text-align: center; }
+.error-state { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 80px 24px; text-align: center; }
 .error-icon { width: 64px; height: 64px; border-radius: 50%; background: #FEE2E2; color: var(--brand-danger); display: flex; align-items: center; justify-content: center; margin-bottom: 16px; }
 
 /* Skeleton Loading */
