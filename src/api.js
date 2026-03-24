@@ -19,6 +19,8 @@ async function request(endpoint, options = {}) {
 export const login = (email, password) => request('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) });
 export const register = (name, email, password, role) => request('/auth/register', { method: 'POST', body: JSON.stringify({ name, email, password, role }) });
 export const googleLogin = (credential) => request('/auth/google', { method: 'POST', body: JSON.stringify({ credential }) });
+export const sendOtp = (email) => request('/auth/send-otp', { method: 'POST', body: JSON.stringify({ email }) });
+export const verifyOtp = (email, code) => request('/auth/verify-otp', { method: 'POST', body: JSON.stringify({ email, code }) });
 
 // User
 export const updateProfile = (id, data) => request(`/users/${id}`, { method: 'PUT', body: JSON.stringify(data) });

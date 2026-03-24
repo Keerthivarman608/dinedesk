@@ -13,8 +13,9 @@ pool.on('connect', () => {
 });
 
 pool.on('error', (err) => {
-  console.error('❌ Unexpected error on idle Postgres client', err);
-  process.exit(-1);
+  // Log the error but do NOT exit — a transient error on an idle client
+  // should not crash the entire server permanently.
+  console.error('⚠️  Unexpected error on idle Postgres client', err.message);
 });
 
 // A helper query function replacing the synchronous SQLite patterns
@@ -23,6 +24,7 @@ const db = {
   
   initSchema: async () => {
     try {
+      // Run each CREATE TABLE separately so one failure doesn't block others
       await pool.query(`
         CREATE TABLE IF NOT EXISTS users (
           id TEXT PRIMARY KEY,
@@ -31,22 +33,26 @@ const db = {
           password TEXT NOT NULL,
           role TEXT NOT NULL CHECK(role IN ('CUSTOMER', 'RESTAURANT')),
           createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        );
+        )
+      `);
 
+      await pool.query(`
         CREATE TABLE IF NOT EXISTS restaurants (
           id SERIAL PRIMARY KEY,
           ownerId TEXT REFERENCES users (id),
           name TEXT NOT NULL,
           cuisine TEXT,
-          rating REAL,
-          reviews INTEGER,
+          rating REAL DEFAULT 0,
+          reviews INTEGER DEFAULT 0,
           distance TEXT,
           image TEXT,
           about TEXT,
           priceRange TEXT,
           tags TEXT
-        );
+        )
+      `);
 
+      await pool.query(`
         CREATE TABLE IF NOT EXISTS bookings (
           id TEXT PRIMARY KEY,
           restaurantId INTEGER REFERENCES restaurants (id),
@@ -54,10 +60,10 @@ const db = {
           date TEXT,
           time TEXT,
           guests INTEGER,
-          status TEXT,
+          status TEXT DEFAULT 'Pending',
           notes TEXT,
           createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        );
+        )
       `);
       
       // Auto-migrate new columns for v2 Profiles

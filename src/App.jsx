@@ -20,14 +20,34 @@ function Toast({ msg, type }) {
   );
 }
 
+function ConfirmDialog({ msg, onConfirm, onCancel }) {
+  return (
+    <div className="modal-overlay" onClick={onCancel} style={{zIndex: 500}}>
+      <div className="modal-sheet slide-up" onClick={e => e.stopPropagation()} style={{padding:'28px 24px'}}>
+        <div className="modal-sheet-handle" />
+        <h2 className="modal-title" style={{marginBottom:12}}>Confirm Action</h2>
+        <p style={{color:'var(--text-secondary)', marginBottom:28, lineHeight:1.5}}>{msg}</p>
+        <div style={{display:'flex', gap:12}}>
+          <button className="btn-secondary" style={{flex:1}} onClick={onCancel}>Keep It</button>
+          <button className="btn-primary" style={{flex:1, background:'var(--brand-danger)'}} onClick={onConfirm}>Yes, Cancel</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function App() {
   const [user, setUser] = useState(() => {
     try { const s = localStorage.getItem('dinedesk_user'); return s ? JSON.parse(s) : null; } catch { return null; }
   });
   const [toast, setToast] = useState(null);
+  const [confirmDialog, setConfirmDialog] = useState(null);
 
   const handleLogin = (u) => { setUser(u); localStorage.setItem('dinedesk_user', JSON.stringify(u)); };
   const handleLogout = () => { setUser(null); localStorage.removeItem('dinedesk_user'); localStorage.removeItem('dinedesk_favs'); localStorage.removeItem('dinedesk_token'); };
+
+  const showConfirm = (msg, onConfirm) => setConfirmDialog({ msg, onConfirm });
+  const dismissConfirm = () => setConfirmDialog(null);
 
   const showToast = (msg, type='error') => {
     setToast({ msg, type });
@@ -36,13 +56,14 @@ export default function App() {
 
   const renderApp = () => {
     if (!user) return <AuthView onLogin={handleLogin} showToast={showToast} />;
-    if (user.role === 'RESTAURANT') return <OwnerApp user={user} onLogout={handleLogout} showToast={showToast} />;
-    return <CustomerApp user={user} onUpdateUser={(u) => { setUser(u); localStorage.setItem('dinedesk_user', JSON.stringify(u)); }} onLogout={handleLogout} showToast={showToast} />;
+    if (user.role === 'RESTAURANT') return <OwnerApp user={user} onLogout={handleLogout} showToast={showToast} showConfirm={showConfirm} />;
+    return <CustomerApp user={user} onUpdateUser={(u) => { setUser(u); localStorage.setItem('dinedesk_user', JSON.stringify(u)); }} onLogout={handleLogout} showToast={showToast} showConfirm={showConfirm} />;
   };
 
   return (
     <>
-      <Toast {...toast} />
+      {toast?.msg && <Toast msg={toast.msg} type={toast.type} />}
+      {confirmDialog && <ConfirmDialog msg={confirmDialog.msg} onConfirm={() => { confirmDialog.onConfirm(); dismissConfirm(); }} onCancel={dismissConfirm} />}
       {renderApp()}
     </>
   );
@@ -62,7 +83,7 @@ function useDebounce(value, delay) {
 // ==========================================
 // CUSTOMER APP
 // ==========================================
-function CustomerApp({ user, onUpdateUser, onLogout, showToast }) {
+function CustomerApp({ user, onUpdateUser, onLogout, showToast, showConfirm }) {
   const [view, setView] = useState('home');
   const [rests, setRests] = useState([]);
   const [bookings, setBookings] = useState([]);
@@ -78,6 +99,7 @@ function CustomerApp({ user, onUpdateUser, onLogout, showToast }) {
   const [bData, setBData] = useState({ date: today, time:'19:00', guests:'2', notes:'' });
   const [modBooking, setModBooking] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [bookingLoading, setBookingLoading] = useState(false);
   
   // Dummy Preference State
   const [pushEnabled, setPushEnabled] = useState(true);
@@ -127,6 +149,8 @@ function CustomerApp({ user, onUpdateUser, onLogout, showToast }) {
   const openBooking = () => { setModBooking(null); setModalOpen(true); };
 
   const confirmBooking = async () => {
+    if (!bData.date) return showToast('Please select a date.', 'error');
+    setBookingLoading(true);
     try {
       if (modBooking) {
         await api.updateBooking(modBooking.id, { date:bData.date, time:bData.time, guests:parseInt(bData.guests), status: 'Pending' });
@@ -138,18 +162,18 @@ function CustomerApp({ user, onUpdateUser, onLogout, showToast }) {
       fetchAll();
       setModalOpen(false); setDetailOpen(false); setModBooking(null); setView('success');
     } catch(err) {
-      showToast('Network Error: Could not save reservation.', 'error');
-    }
+      showToast(err.message || 'Network Error: Could not save reservation.', 'error');
+    } finally { setBookingLoading(false); }
   };
 
   const cancelBooking = async (id) => {
-    if(confirm('Cancel this reservation?')) {
+    showConfirm('Are you sure you want to cancel this reservation?', async () => {
       try {
         await api.updateBookingStatus(id, 'Cancelled');
-        showToast('Reservation securely cancelled.', 'info');
+        showToast('Reservation cancelled.', 'info');
         fetchAll();
       } catch(err) { showToast('Network error while cancelling.', 'error'); }
-    }
+    });
   };
 
   const openModify = (b) => {
@@ -222,7 +246,7 @@ function CustomerApp({ user, onUpdateUser, onLogout, showToast }) {
       </div>
       <Nav />
       {detailOpen && sel && <Detail r={sel} onBack={()=>setDetailOpen(false)} onBook={openBooking} fav={favs.has(sel.id)} onFav={(e)=>toggleFav(e, sel.id)} />}
-      {modalOpen && <BookingSheet r={sel} data={bData} setData={setBData} onConfirm={confirmBooking} onClose={()=>setModalOpen(false)} />}
+      {modalOpen && <BookingSheet r={sel} data={bData} setData={setBData} onConfirm={confirmBooking} onClose={()=>setModalOpen(false)} loading={bookingLoading} />}
     </div>
   );
 
@@ -246,7 +270,7 @@ function CustomerApp({ user, onUpdateUser, onLogout, showToast }) {
       </div>
       <Nav />
       {detailOpen && sel && <Detail r={sel} onBack={()=>setDetailOpen(false)} onBook={openBooking} fav={favs.has(sel.id)} onFav={(e)=>toggleFav(e, sel.id)} />}
-      {modalOpen && <BookingSheet r={sel} data={bData} setData={setBData} onConfirm={confirmBooking} onClose={()=>setModalOpen(false)} />}
+      {modalOpen && <BookingSheet r={sel} data={bData} setData={setBData} onConfirm={confirmBooking} onClose={()=>setModalOpen(false)} loading={bookingLoading} />}
     </div>
   );
 
@@ -265,7 +289,9 @@ function CustomerApp({ user, onUpdateUser, onLogout, showToast }) {
             </div>
           ) : bookings.map(b=>(
             <div className="booking-card slide-up" key={b.id}>
-              <div className="booking-status">{b.status}</div>
+              <div className="booking-status" style={{
+                color: b.status==='Confirmed' ? 'var(--brand-success)' : b.status==='Cancelled'||b.status==='Declined' ? 'var(--brand-danger)' : 'var(--brand-warning)'
+              }}>{b.status}</div>
               <h3 className="booking-rest-name">{b.restaurantName}</h3>
               <div className="booking-details-grid">
                 <div className="booking-detail-item"><IconCalendar size={16} /> {b.date}</div>
@@ -273,10 +299,12 @@ function CustomerApp({ user, onUpdateUser, onLogout, showToast }) {
                 <div className="booking-detail-item"><IconUsers size={16} /> {b.guests} Guests</div>
                 <div className="booking-detail-item"><IconMapPin size={16} /> {b.distance}</div>
               </div>
-              <div className="booking-actions">
-                <button className="btn-secondary" style={{color:'var(--brand-danger)'}} onClick={()=>cancelBooking(b.id)}>Cancel</button>
-                <button className="btn-secondary" onClick={()=>openModify(b)}>Modify</button>
-              </div>
+              {b.status !== 'Cancelled' && b.status !== 'Declined' && (
+                <div className="booking-actions">
+                  <button className="btn-secondary" style={{color:'var(--brand-danger)'}} onClick={()=>cancelBooking(b.id)}>Cancel</button>
+                  <button className="btn-secondary" onClick={()=>openModify(b)}>Modify</button>
+                </div>
+              )}
             </div>
           ))}
         </div>
@@ -350,7 +378,7 @@ function CustomerApp({ user, onUpdateUser, onLogout, showToast }) {
         </div>
       </div>
       <Nav />
-      {modalOpen && <BookingSheet r={sel} data={bData} setData={setBData} onConfirm={confirmBooking} onClose={()=>setModalOpen(false)} />}
+      {modalOpen && <BookingSheet r={sel} data={bData} setData={setBData} onConfirm={confirmBooking} onClose={()=>setModalOpen(false)} loading={bookingLoading} />}
       
       {profileOpen && (
         <div className="modal-overlay" onClick={()=>setProfileOpen(false)}>

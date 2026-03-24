@@ -10,7 +10,10 @@ const rateLimit = require('express-rate-limit');
 const db = require('./database');
 require('dotenv').config();
 
-const JWT_SECRET = process.env.JWT_SECRET || 'super_secret_dinedesk_key'; // Fallback for local testing
+const JWT_SECRET = process.env.JWT_SECRET || 'super_secret_dinedesk_key';
+if (!process.env.JWT_SECRET) {
+  console.warn('⚠️  JWT_SECRET is not set in environment variables! Using insecure fallback. Set JWT_SECRET in production.');
+}
 
 const app = express();
 // Render assigns a dynamic PORT in production
@@ -75,6 +78,53 @@ const validateRequest = (req, res, next) => {
 // ==========================================
 // AUTHENTICATION ROUTES
 // ==========================================
+
+// ==========================================
+// EMAIL OTP VERIFICATION
+// ==========================================
+const otpStore = new Map(); // In-memory OTP store: email -> { code, expiresAt }
+
+// Send OTP to email (generates and returns code)
+app.post('/api/auth/send-otp', authLimiter, [
+  body('email').isEmail().normalizeEmail().withMessage('Valid email required'),
+  validateRequest
+], async (req, res) => {
+  try {
+    const email = req.body.email.trim().toLowerCase();
+    
+    // Check if email already registered
+    const existing = await db.query('SELECT id FROM users WHERE email = $1', [email]);
+    if (existing.rows.length > 0) return res.status(400).json({ error: 'Email already registered. Please sign in.' });
+    
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    otpStore.set(email, { code, expiresAt: Date.now() + 5 * 60 * 1000 }); // 5 min expiry
+    
+    // In production, integrate SendGrid/Mailgun to email the code.
+    // For now, the code is returned in the response for the frontend to display.
+    console.log(`📧 OTP for ${email}: ${code}`);
+    res.json({ success: true, message: 'Verification code sent.', otp: code });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Verify OTP
+app.post('/api/auth/verify-otp', authLimiter, [
+  body('email').isEmail().normalizeEmail().withMessage('Valid email required'),
+  body('code').isLength({ min: 6, max: 6 }).withMessage('Code must be 6 digits'),
+  validateRequest
+], async (req, res) => {
+  const email = req.body.email.trim().toLowerCase();
+  const code = req.body.code;
+  const stored = otpStore.get(email);
+  
+  if (!stored) return res.status(400).json({ error: 'No verification code found. Please request a new one.' });
+  if (Date.now() > stored.expiresAt) { otpStore.delete(email); return res.status(400).json({ error: 'Code expired. Please request a new one.' }); }
+  if (stored.code !== code) return res.status(400).json({ error: 'Incorrect code. Please try again.' });
+  
+  otpStore.delete(email);
+  res.json({ success: true, verified: true });
+});
 
 // Register User
 app.post('/api/auth/register', authLimiter, [
@@ -375,5 +425,16 @@ app.use((req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`🚀 Postgres Cloud Backend running on port ${PORT}`);
+  console.log(`🚀 DineDesk Backend running on port ${PORT}`);
+
+  // Self-ping keepalive: prevents Render/Koyeb free-tier sleep.
+  // Pings every 14 minutes so the service stays warm.
+  const APP_URL = process.env.APP_URL; // Set this to your public URL in production env vars
+  if (APP_URL) {
+    setInterval(() => {
+      fetch(`${APP_URL}/api/health`)
+        .then(() => console.log('💫 Keepalive ping sent'))
+        .catch(err => console.warn('⚠️  Keepalive ping failed:', err.message));
+    }, 14 * 60 * 1000); // every 14 minutes
+  }
 });

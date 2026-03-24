@@ -2,30 +2,44 @@ import { useState, useEffect } from 'react';
 import { IconCalendar, IconClock, IconUsers, IconUser, IconX, IconStore } from './Icons';
 import * as api from './api';
 
-export default function OwnerApp({ user, onLogout, showToast }) {
+export default function OwnerApp({ user, onLogout, showToast, showConfirm }) {
   const [view, setView] = useState('bookings');
   const [venues, setVenues] = useState([]);
+  const [selectedVenueId, setSelectedVenueId] = useState(null);
   const [bookings, setBookings] = useState([]);
   const [addOpen, setAddOpen] = useState(false);
   const [newV, setNewV] = useState({ name:'', cuisine:'American', priceRange:'$$', image:'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4', distance:'1.0 mi', about:'' });
   const [loading, setLoading] = useState(true);
 
-  const fetchVenuesAndBookings = async () => {
+  const fetchVenuesAndBookings = async (venueId) => {
     try {
       setLoading(true);
       const vData = await api.getOwnerRestaurants(user.id);
       setVenues(vData);
 
-      if (vData.length > 0) {
-        const bData = await api.getRestaurantBookings(vData[0].id);
+      const targetId = venueId || (vData.length > 0 ? vData[0].id : null);
+      if (targetId) {
+        setSelectedVenueId(targetId);
+        const bData = await api.getRestaurantBookings(targetId);
         setBookings(bData);
       }
     } catch(err){
-      showToast('Network error: Retrying connection...', 'error');
+      showToast('Network error: Could not load data.', 'error');
     } finally { setLoading(false); }
   };
 
   useEffect(() => { fetchVenuesAndBookings(); }, [user.id]);
+
+  const switchVenue = async (id) => {
+    setSelectedVenueId(id);
+    setLoading(true);
+    try {
+      const bData = await api.getRestaurantBookings(id);
+      setBookings(bData);
+    } catch(err) {
+      showToast('Could not load bookings for this venue.', 'error');
+    } finally { setLoading(false); }
+  };
 
   const updateStatus = async (id, status) => {
     try {
@@ -38,14 +52,14 @@ export default function OwnerApp({ user, onLogout, showToast }) {
   };
 
   const submitVenue = async () => {
-    if (!newV.name) { showToast('Please enter a venue name.'); return; }
+    if (!newV.name) { showToast('Please enter a venue name.', 'error'); return; }
     try {
       await api.createRestaurant({...newV, ownerId: user.id, tags:['New']});
       setAddOpen(false);
       showToast('Venue successfully added!', 'success');
       fetchVenuesAndBookings();
     } catch(err) {
-      showToast('Error saving venue. Are you online?', 'error');
+      showToast(err.message || 'Error saving venue. Are you online?', 'error');
     }
   };
 
@@ -53,7 +67,7 @@ export default function OwnerApp({ user, onLogout, showToast }) {
     <nav className="bottom-nav">
       <button className={`nav-item ${view==='bookings'?'active':''}`} onClick={()=>setView('bookings')}><IconCalendar size={24} /><span className="nav-label">Queue</span></button>
       <button className={`nav-item ${view==='venues'?'active':''}`} onClick={()=>setView('venues')}><IconStore size={24} /><span className="nav-label">My Venues</span></button>
-      <button className="nav-item" onClick={onLogout}><IconX size={24} /><span className="nav-label">Logout</span></button>
+      <button className="nav-item" onClick={() => showConfirm('Sign out of your restaurant dashboard?', onLogout)}><IconX size={24} /><span className="nav-label">Logout</span></button>
     </nav>
   );
 
@@ -67,6 +81,13 @@ export default function OwnerApp({ user, onLogout, showToast }) {
 
         {view === 'bookings' && (
           <div style={{padding:'0 20px'}}>
+            {venues.length > 1 && (
+              <div style={{marginBottom: 16}}>
+                <select className="form-select" value={selectedVenueId || ''} onChange={e => switchVenue(Number(e.target.value))}>
+                  {venues.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
+                </select>
+              </div>
+            )}
              {loading ? <div className="spinner" /> :
              venues.length === 0 ? (
                <div className="error-state" style={{marginTop:'40px'}}>
