@@ -35,7 +35,10 @@ export default function AuthView({ onLogin, showToast }) {
       });
       if (googleBtnRef.current) {
         window.google.accounts.id.renderButton(googleBtnRef.current, {
-          theme: 'outline', size: 'large', width: '100%', text: 'continue_with',
+          theme: window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'filled_black' : 'outline', 
+          size: 'large', 
+          width: '100%', 
+          text: 'continue_with',
         });
       }
     }
@@ -227,8 +230,8 @@ export default function AuthView({ onLogin, showToast }) {
       
       {!isLogin && (
         <div style={{display:'flex', gap:'12px', marginBottom:'24px'}}>
-          <button type="button" className="btn-secondary" style={{flex:1, background: role==='CUSTOMER'?'var(--brand-primary)':'var(--bg-secondary)', color: role==='CUSTOMER'?'#fff':'var(--text-primary)', padding:'12px', borderRadius:'12px', fontWeight:'700'}} onClick={()=>setRole('CUSTOMER')}>Diner</button>
-          <button type="button" className="btn-secondary" style={{flex:1, background: role==='RESTAURANT'?'var(--brand-primary)':'var(--bg-secondary)', color: role==='RESTAURANT'?'#fff':'var(--text-primary)', padding:'12px', borderRadius:'12px', fontWeight:'700'}} onClick={()=>setRole('RESTAURANT')}>Restaurant</button>
+          <button type="button" className="btn-secondary" style={{flex:1, background: role==='CUSTOMER'?'var(--brand-primary)':'var(--bg-secondary)', color: role==='CUSTOMER'?'var(--bg-primary)':'var(--text-primary)', padding:'12px', borderRadius:'12px', fontWeight:'700', border: role==='CUSTOMER'?'none':'1px solid var(--border-light)'}} onClick={()=>setRole('CUSTOMER')}>Diner</button>
+          <button type="button" className="btn-secondary" style={{flex:1, background: role==='RESTAURANT'?'var(--brand-primary)':'var(--bg-secondary)', color: role==='RESTAURANT'?'var(--bg-primary)':'var(--text-primary)', padding:'12px', borderRadius:'12px', fontWeight:'700', border: role==='RESTAURANT'?'none':'1px solid var(--border-light)'}} onClick={()=>setRole('RESTAURANT')}>Restaurant</button>
         </div>
       )}
 
