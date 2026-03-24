@@ -75,14 +75,14 @@ export default function AuthView({ onLogin, showToast }) {
     const isEmail = contact.includes('@') && contact.includes('.');
     const isPhone = /^\+?[\d\s\-]{7,15}$/.test(contact);
     if (!isEmail && !isPhone) newErrors.contact = true;
-    if (!password.trim() || password.length < 6) newErrors.password = true;
+    if (!password.trim() || password.length < 8) newErrors.password = true;
     if (name.trim().length < 2) newErrors.name = true;
 
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
       if (newErrors.name) return showToast('Please enter your full name.', 'error');
       if (newErrors.contact) return showToast('Please enter a valid email or mobile number.', 'error');
-      if (newErrors.password) return showToast('Password must be at least 6 characters.', 'error');
+      if (newErrors.password) return showToast('Password must be at least 8 characters.', 'error');
       return;
     }
 
@@ -238,7 +238,7 @@ export default function AuthView({ onLogin, showToast }) {
       <form onSubmit={submit} noValidate>
         {!isLogin && <div className="form-group"><label className="form-label">Full Name / Business Name</label><input className="form-input" style={errors.name ? errorBorder : {}} placeholder="Enter your name" value={name} onChange={e=>{setName(e.target.value); setErrors(p=>({...p, name:false}));}} /></div>}
         <div className="form-group"><label className="form-label">Email or Mobile Number</label><input type="text" className="form-input" style={errors.contact ? errorBorder : {}} placeholder={isLogin ? 'Enter email or phone' : 'you@example.com or +123456789'} value={contact} onChange={e=>{setContact(e.target.value); setErrors(p=>({...p, contact:false}));}} /></div>
-        <div className="form-group"><label className="form-label">Password</label><input type="password" className="form-input" style={errors.password ? errorBorder : {}} placeholder={isLogin ? 'Enter your password' : 'Min. 6 characters'} value={password} onChange={e=>{setPassword(e.target.value); setErrors(p=>({...p, password:false}));}} /></div>
+        <div className="form-group"><label className="form-label">Password</label><input type="password" className="form-input" style={errors.password ? errorBorder : {}} placeholder={isLogin ? 'Enter your password' : 'Min. 8 characters'} value={password} onChange={e=>{setPassword(e.target.value); setErrors(p=>({...p, password:false}));}} /></div>
         <button className="btn-primary" type="submit" disabled={loading} style={{marginTop:'24px'}}>{loading ? 'Connecting...' : (isLogin ? 'Sign In' : 'Continue')}</button>
       </form>
 

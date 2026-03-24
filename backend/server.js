@@ -29,10 +29,13 @@ const transporter = process.env.SMTP_USER && process.env.SMTP_PASS ? nodemailer.
 const twilioClient = process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN ? twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN) : null;
 
 const app = express();
+// Default security headers (blocks XSS, clickjacking, etc.)
+app.use(helmet({
+  contentSecurityPolicy: false, // Disabling CSP strictly here to not break local React preview setup if inline scripts are used
+}));
+
 // Render assigns a dynamic PORT in production
 const PORT = process.env.PORT || 3000;
-
-app.use(helmet()); // Sets HTTP security headers
 app.use(cors());
 app.use(express.json({ limit: '10kb' })); // Strictly restrict JSON payload size to prevent OOM/DDoS
 
@@ -163,7 +166,7 @@ app.post('/api/auth/verify-otp', authLimiter, [
 app.post('/api/auth/register', authLimiter, [
   body('name').trim().isLength({ min: 2 }).escape().withMessage('Name must be at least 2 characters'),
   body('contact').notEmpty().withMessage('Email or Mobile Number is required'),
-  body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters'),
+  body('password').isLength({ min: 8 }).withMessage('Password must be at least 8 characters for security'),
   body('role').isIn(['CUSTOMER', 'RESTAURANT']).withMessage('Role must be CUSTOMER or RESTAURANT'),
   validateRequest
 ], async (req, res) => {
@@ -385,10 +388,16 @@ app.get('/api/bookings/user/:userId', authenticateToken, async (req, res) => {
 // Get Bookings for Restaurant Owner
 app.get('/api/bookings/restaurant/:restaurantId', authenticateToken, async (req, res) => {
   try {
-    // Only restaurant owners can see their bookings
     if (req.user.role !== 'RESTAURANT') return res.status(403).json({ error: 'Unauthorized access' });
+    
+    // OWASP: Fix IDOR (Ensure the user actually owns this restaurant)
+    const restCheck = await db.query('SELECT ownerid FROM restaurants WHERE id = $1', [req.params.restaurantId]);
+    if (restCheck.rows.length === 0 || restCheck.rows[0].ownerid !== req.user.id) {
+      return res.status(403).json({ error: 'Unauthorized access to this restaurant' });
+    }
+
     const sql = `
-      SELECT b.*, u.name as customerName, u.email as customerEmail
+      SELECT b.*, u.name as customerName, u.email as customerEmail, u.phone as customerPhone
       FROM bookings b
       JOIN users u ON b.userId = u.id
       WHERE b.restaurantId = $1
@@ -405,6 +414,16 @@ app.get('/api/bookings/restaurant/:restaurantId', authenticateToken, async (req,
 app.patch('/api/bookings/:id/status', authenticateToken, async (req, res) => {
   try {
     if (req.user.role !== 'RESTAURANT') return res.status(403).json({ error: 'Unauthorized access' });
+    
+    // OWASP: Fix IDOR (Ensure the user owns the restaurant that this booking is for)
+    const bookingCheck = await db.query('SELECT restaurantid FROM bookings WHERE id = $1', [req.params.id]);
+    if (bookingCheck.rows.length === 0) return res.status(404).json({ error: 'Booking not found' });
+    
+    const restCheck = await db.query('SELECT ownerid FROM restaurants WHERE id = $1', [bookingCheck.rows[0].restaurantid]);
+    if (restCheck.rows.length === 0 || restCheck.rows[0].ownerid !== req.user.id) {
+      return res.status(403).json({ error: 'Unauthorized to modify this booking' });
+    }
+
     await db.query('UPDATE bookings SET status = $1 WHERE id = $2', [req.body.status, req.params.id]);
     res.json({ success: true });
   } catch (err) {
@@ -421,7 +440,11 @@ app.put('/api/bookings/:id', authenticateToken, [
   validateRequest
 ], async (req, res) => {
   try {
-    // Strict checking who owns the booking would require a SELECT first, but we will assume client ID sent matches
+    // OWASP: Fix IDOR (Ensure the booking belongs to the requesting customer)
+    const bookingCheck = await db.query('SELECT userid FROM bookings WHERE id = $1', [req.params.id]);
+    if (bookingCheck.rows.length === 0) return res.status(404).json({ error: 'Booking not found' });
+    if (bookingCheck.rows[0].userid !== req.user.id) return res.status(403).json({ error: 'Unauthorized to edit this booking' });
+
     const { date, time, guests, status } = req.body;
     await db.query(
       'UPDATE bookings SET date = $1, time = $2, guests = $3, status = $4 WHERE id = $5',
@@ -436,6 +459,11 @@ app.put('/api/bookings/:id', authenticateToken, [
 // Delete Booking
 app.delete('/api/bookings/:id', authenticateToken, async (req, res) => {
   try {
+    // OWASP: Fix IDOR (Only the owner of the booking can delete it)
+    const bookingCheck = await db.query('SELECT userid FROM bookings WHERE id = $1', [req.params.id]);
+    if (bookingCheck.rows.length === 0) return res.status(404).json({ error: 'Booking not found' });
+    if (bookingCheck.rows[0].userid !== req.user.id) return res.status(403).json({ error: 'Unauthorized to delete this booking' });
+
     await db.query('DELETE FROM bookings WHERE id = $1', [req.params.id]);
     res.json({ success: true });
   } catch (err) {
