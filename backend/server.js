@@ -7,6 +7,8 @@ const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken'); // Added jsonwebtoken
 const { body, validationResult } = require('express-validator');
 const rateLimit = require('express-rate-limit');
+const nodemailer = require('nodemailer');
+const twilio = require('twilio');
 const db = require('./database');
 require('dotenv').config();
 
@@ -14,6 +16,17 @@ const JWT_SECRET = process.env.JWT_SECRET || 'super_secret_dinedesk_key';
 if (!process.env.JWT_SECRET) {
   console.warn('⚠️  JWT_SECRET is not set in environment variables! Using insecure fallback. Set JWT_SECRET in production.');
 }
+
+// Nodemailer SMTP Transporter
+const transporter = process.env.SMTP_USER && process.env.SMTP_PASS ? nodemailer.createTransport({
+  host: process.env.SMTP_HOST || 'smtp.gmail.com',
+  port: parseInt(process.env.SMTP_PORT || '587'),
+  secure: process.env.SMTP_SECURE === 'true', // true for 465, false for other ports
+  auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS }
+}) : null;
+
+// Twilio Client
+const twilioClient = process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN ? twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN) : null;
 
 const app = express();
 // Render assigns a dynamic PORT in production
@@ -79,29 +92,49 @@ const validateRequest = (req, res, next) => {
 // AUTHENTICATION ROUTES
 // ==========================================
 
-// ==========================================
-// EMAIL OTP VERIFICATION
-// ==========================================
-const otpStore = new Map(); // In-memory OTP store: email -> { code, expiresAt }
+// Set up routes for OTP, Registration, and Login
+const otpStore = new Map(); // In-memory OTP store: contact -> { code, expiresAt }
 
-// Send OTP to email (generates and returns code)
+// Send OTP to email or phone
 app.post('/api/auth/send-otp', authLimiter, [
-  body('email').isEmail().normalizeEmail().withMessage('Valid email required'),
+  body('contact').notEmpty().withMessage('Email or Mobile Number is required'),
   validateRequest
 ], async (req, res) => {
   try {
-    const email = req.body.email.trim().toLowerCase();
+    const contact = req.body.contact.trim().toLowerCase();
+    const isEmail = contact.includes('@');
     
-    // Check if email already registered
-    const existing = await db.query('SELECT id FROM users WHERE email = $1', [email]);
-    if (existing.rows.length > 0) return res.status(400).json({ error: 'Email already registered. Please sign in.' });
+    // Check if registered
+    const existing = await db.query('SELECT id FROM users WHERE email = $1 OR phone = $1', [contact]);
+    if (existing.rows.length > 0) return res.status(400).json({ error: 'Already registered. Please sign in.' });
     
     const code = Math.floor(100000 + Math.random() * 900000).toString();
-    otpStore.set(email, { code, expiresAt: Date.now() + 5 * 60 * 1000 }); // 5 min expiry
+    otpStore.set(contact, { code, expiresAt: Date.now() + 5 * 60 * 1000 }); // 5 min expiry
     
-    // In production, integrate SendGrid/Mailgun to email the code.
-    // For now, the code is returned in the response for the frontend to display.
-    console.log(`📧 OTP for ${email}: ${code}`);
+    // Real email sending
+    if (isEmail && transporter) {
+      await transporter.sendMail({
+        from: `"DineDesk" <${process.env.SMTP_USER}>`,
+        to: contact,
+        subject: "Your DineDesk Verification Code",
+        text: `Your DineDesk verification code is ${code}. It expires in 5 minutes.`
+      });
+      console.log(`📧 Real OTP Email sent to ${contact}`);
+    } 
+    // Real SMS sending
+    else if (!isEmail && twilioClient && process.env.TWILIO_PHONE_NUMBER) {
+      await twilioClient.messages.create({
+        body: `Your DineDesk verification code is ${code}`,
+        from: process.env.TWILIO_PHONE_NUMBER,
+        to: contact
+      });
+      console.log(`📱 Real OTP SMS sent to ${contact}`);
+    } 
+    // Fallback if env vars not configured yet
+    else {
+      console.log(`🔧 MOCK OTP generated for ${contact}: ${code} (Add SMTP/Twilio Env Vars to enable real messaging)`);
+    }
+
     res.json({ success: true, message: 'Verification code sent.', otp: code });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -110,64 +143,72 @@ app.post('/api/auth/send-otp', authLimiter, [
 
 // Verify OTP
 app.post('/api/auth/verify-otp', authLimiter, [
-  body('email').isEmail().normalizeEmail().withMessage('Valid email required'),
+  body('contact').notEmpty().withMessage('Contact is required'),
   body('code').isLength({ min: 6, max: 6 }).withMessage('Code must be 6 digits'),
   validateRequest
 ], async (req, res) => {
-  const email = req.body.email.trim().toLowerCase();
+  const contact = req.body.contact.trim().toLowerCase();
   const code = req.body.code;
-  const stored = otpStore.get(email);
+  const stored = otpStore.get(contact);
   
   if (!stored) return res.status(400).json({ error: 'No verification code found. Please request a new one.' });
-  if (Date.now() > stored.expiresAt) { otpStore.delete(email); return res.status(400).json({ error: 'Code expired. Please request a new one.' }); }
+  if (Date.now() > stored.expiresAt) { otpStore.delete(contact); return res.status(400).json({ error: 'Code expired. Please request a new one.' }); }
   if (stored.code !== code) return res.status(400).json({ error: 'Incorrect code. Please try again.' });
   
-  otpStore.delete(email);
+  otpStore.delete(contact);
   res.json({ success: true, verified: true });
 });
 
 // Register User
 app.post('/api/auth/register', authLimiter, [
   body('name').trim().isLength({ min: 2 }).escape().withMessage('Name must be at least 2 characters'),
-  body('email').isEmail().normalizeEmail().withMessage('Valid email required'),
+  body('contact').notEmpty().withMessage('Email or Mobile Number is required'),
   body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters'),
   body('role').isIn(['CUSTOMER', 'RESTAURANT']).withMessage('Role must be CUSTOMER or RESTAURANT'),
   validateRequest
 ], async (req, res) => {
   try {
     const name = (req.body.name || '').trim();
-    const email = (req.body.email || '').trim().toLowerCase();
+    const contact = (req.body.contact || '').trim().toLowerCase();
+    const isEmail = contact.includes('@');
+    const email = isEmail ? contact : null;
+    const phone = !isEmail ? contact : null;
+    
     const password = req.body.password;
     const role = req.body.role;
-    if (!name || !email || !password || !role) return res.status(400).json({ error: 'Missing fields' });
+    if (!name || !contact || !password || !role) return res.status(400).json({ error: 'Missing fields' });
     
+    // Secondary check to ensure safety
+    const existCheck = await db.query('SELECT id FROM users WHERE email = $1 OR phone = $2', [contact, contact]);
+    if (existCheck.rows.length > 0) return res.status(400).json({ error: 'Account already exists' });
+
     const id = 'U_' + Math.random().toString(36).substring(2, 10).toUpperCase();
     const hashedPassword = await bcrypt.hash(password, 10);
     
     await db.query(
-      'INSERT INTO users (id, name, email, password, role) VALUES ($1, $2, $3, $4, $5)',
-      [id, name, email, hashedPassword, role]
+      'INSERT INTO users (id, name, email, phone, password, role) VALUES ($1, $2, $3, $4, $5, $6)',
+      [id, name, email, phone, hashedPassword, role]
     );
       
-    const token = jwt.sign({ id, role, email }, JWT_SECRET, { expiresIn: '24h' });
-    res.json({ success: true, token, user: { id, name, email, role } });
+    const token = jwt.sign({ id, role, contact }, JWT_SECRET, { expiresIn: '24h' });
+    res.json({ success: true, token, user: { id, name, email, phone, role } });
   } catch (err) {
-    if (err.message.includes('unique constraint')) return res.status(400).json({ error: 'Email already exists' });
+    if (err.message.includes('unique constraint')) return res.status(400).json({ error: 'Account already exists' });
     res.status(500).json({ error: err.message });
   }
 });
 
 // Login User
 app.post('/api/auth/login', authLimiter, [
-  body('email').isEmail().normalizeEmail().withMessage('Valid email required'),
+  body('contact').notEmpty().withMessage('Email or Mobile Number is required'),
   validateRequest
 ], async (req, res) => {
   try {
-    const email = (req.body.email || '').trim().toLowerCase();
+    const contact = (req.body.contact || '').trim().toLowerCase();
     const password = req.body.password;
     const result = await db.query(
-      'SELECT id, name, email, role, password FROM users WHERE email = $1',
-      [email]
+      'SELECT id, name, email, phone, role, password FROM users WHERE email = $1 OR phone = $1',
+      [contact]
     );
     
     if (result.rows.length === 0) return res.status(401).json({ error: 'Invalid credentials' });
@@ -179,7 +220,7 @@ app.post('/api/auth/login', authLimiter, [
     if (!isValid) return res.status(401).json({ error: 'Invalid credentials' });
     
     const { password: _, ...safeUser } = user;
-    const token = jwt.sign({ id: user.id, role: user.role, email: user.email }, JWT_SECRET, { expiresIn: '24h' });
+    const token = jwt.sign({ id: user.id, role: user.role, contact }, JWT_SECRET, { expiresIn: '24h' });
     res.json({ success: true, token, user: safeUser });
   } catch (err) {
     res.status(500).json({ error: err.message });

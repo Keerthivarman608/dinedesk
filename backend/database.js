@@ -69,8 +69,16 @@ const db = {
       // Auto-migrate new columns for v2 Profiles
       try {
         await pool.query('ALTER TABLE users ADD COLUMN phone TEXT');
+      } catch(e) { /* column already exists */ }
+      try {
+        await pool.query('ALTER TABLE users ADD CONSTRAINT users_phone_key UNIQUE (phone)');
+      } catch(e) { /* constraint already exists */ }
+      try {
         await pool.query('ALTER TABLE users ADD COLUMN dietaryRestrictions TEXT');
-      } catch(e) { /* columns already exist */ }
+      } catch(e) { /* column already exists */ }
+      try {
+        await pool.query('ALTER TABLE users ALTER COLUMN email DROP NOT NULL');
+      } catch (e) { /* already dropped or not supported */ }
 
       // Performance indexes
       try {

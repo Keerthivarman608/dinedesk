@@ -13,7 +13,7 @@ const GoogleIcon = () => (
 export default function AuthView({ onLogin, showToast }) {
   const [isLogin, setIsLogin] = useState(true);
   const [role, setRole] = useState('CUSTOMER');
-  const [email, setEmail] = useState('');
+  const [contact, setContact] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
   const [loading, setLoading] = useState(false);
@@ -69,14 +69,16 @@ export default function AuthView({ onLogin, showToast }) {
 
   const sendVerificationCode = async () => {
     const newErrors = {};
-    if (!email.trim() || !email.includes('@') || !email.includes('.')) newErrors.email = true;
+    const isEmail = contact.includes('@') && contact.includes('.');
+    const isPhone = /^\+?[\d\s\-]{7,15}$/.test(contact);
+    if (!isEmail && !isPhone) newErrors.contact = true;
     if (!password.trim() || password.length < 6) newErrors.password = true;
     if (name.trim().length < 2) newErrors.name = true;
 
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
       if (newErrors.name) return showToast('Please enter your full name.', 'error');
-      if (newErrors.email) return showToast('Please enter a valid email address.', 'error');
+      if (newErrors.contact) return showToast('Please enter a valid email or mobile number.', 'error');
       if (newErrors.password) return showToast('Password must be at least 6 characters.', 'error');
       return;
     }
@@ -84,10 +86,10 @@ export default function AuthView({ onLogin, showToast }) {
     setErrors({});
     setLoading(true);
     try {
-      const res = await api.sendOtp(email);
+      const res = await api.sendOtp(contact);
       setServerOtp(res.otp);
       setStep('otp');
-      showToast('Verification code sent to your email!', 'success');
+      showToast('Verification code sent!', 'success');
       setTimeout(() => otpRefs[0].current?.focus(), 300);
     } catch (err) {
       showToast(err.message === 'Failed to fetch' ? 'Network Error' : err.message, 'error');
@@ -100,8 +102,8 @@ export default function AuthView({ onLogin, showToast }) {
 
     setLoading(true);
     try {
-      await api.verifyOtp(email, code);
-      const json = await api.register(name, email, password, role);
+      await api.verifyOtp(contact, code);
+      const json = await api.register(name, contact, password, role);
       localStorage.setItem('dinedesk_token', json.token);
       showToast('Account created successfully!', 'success');
       onLogin(json.user);
@@ -115,12 +117,14 @@ export default function AuthView({ onLogin, showToast }) {
     if (!isLogin) return sendVerificationCode();
 
     const newErrors = {};
-    if (!email.trim() || !email.includes('@') || !email.includes('.')) newErrors.email = true;
+    const isEmail = contact.includes('@') && contact.includes('.');
+    const isPhone = /^\+?[\d\s\-]{7,15}$/.test(contact);
+    if (!isEmail && !isPhone) newErrors.contact = true;
     if (!password.trim()) newErrors.password = true;
 
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
-      if (newErrors.email) return showToast('Please enter a valid email address.', 'error');
+      if (newErrors.contact) return showToast('Please enter a valid email or mobile number.', 'error');
       if (newErrors.password) return showToast('Please enter your password.', 'error');
       return;
     }
@@ -128,7 +132,7 @@ export default function AuthView({ onLogin, showToast }) {
     setErrors({});
     setLoading(true);
     try {
-      const json = await api.login(email, password);
+      const json = await api.login(contact, password);
       localStorage.setItem('dinedesk_token', json.token);
       showToast('Welcome!', 'success');
       onLogin(json.user);
@@ -151,9 +155,9 @@ export default function AuthView({ onLogin, showToast }) {
           </svg>
         </div>
         
-        <h1 className="home-title" style={{textAlign:'center', marginBottom:8, fontSize:'1.5rem'}}>Verify Your Email</h1>
+        <h1 className="home-title" style={{textAlign:'center', marginBottom:8, fontSize:'1.5rem'}}>Verify Account</h1>
         <p style={{textAlign:'center', color:'var(--text-secondary)', marginBottom:16, lineHeight:1.5, fontSize:'0.9rem'}}>
-          Enter the 6-digit code for<br/><strong style={{color:'var(--text-primary)'}}>{email}</strong>
+          Enter the 6-digit code for<br/><strong style={{color:'var(--text-primary)'}}>{contact}</strong>
         </p>
 
         {serverOtp && (
@@ -230,7 +234,7 @@ export default function AuthView({ onLogin, showToast }) {
 
       <form onSubmit={submit} noValidate>
         {!isLogin && <div className="form-group"><label className="form-label">Full Name / Business Name</label><input className="form-input" style={errors.name ? errorBorder : {}} placeholder="Enter your name" value={name} onChange={e=>{setName(e.target.value); setErrors(p=>({...p, name:false}));}} /></div>}
-        <div className="form-group"><label className="form-label">Email Address</label><input type="email" className="form-input" style={errors.email ? errorBorder : {}} placeholder={isLogin ? 'Enter your email' : 'you@example.com'} value={email} onChange={e=>{setEmail(e.target.value); setErrors(p=>({...p, email:false}));}} /></div>
+        <div className="form-group"><label className="form-label">Email or Mobile Number</label><input type="text" className="form-input" style={errors.contact ? errorBorder : {}} placeholder={isLogin ? 'Enter email or phone' : 'you@example.com or +123456789'} value={contact} onChange={e=>{setContact(e.target.value); setErrors(p=>({...p, contact:false}));}} /></div>
         <div className="form-group"><label className="form-label">Password</label><input type="password" className="form-input" style={errors.password ? errorBorder : {}} placeholder={isLogin ? 'Enter your password' : 'Min. 6 characters'} value={password} onChange={e=>{setPassword(e.target.value); setErrors(p=>({...p, password:false}));}} /></div>
         <button className="btn-primary" type="submit" disabled={loading} style={{marginTop:'24px'}}>{loading ? 'Connecting...' : (isLogin ? 'Sign In' : 'Continue')}</button>
       </form>
