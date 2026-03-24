@@ -152,9 +152,26 @@ export default function AuthView({ onLogin, showToast }) {
         </div>
         
         <h1 className="home-title" style={{textAlign:'center', marginBottom:8, fontSize:'1.5rem'}}>Verify Your Email</h1>
-        <p style={{textAlign:'center', color:'var(--text-secondary)', marginBottom:32, lineHeight:1.5, fontSize:'0.9rem'}}>
-          We sent a 6-digit code to<br/><strong style={{color:'var(--text-primary)'}}>{email}</strong>
+        <p style={{textAlign:'center', color:'var(--text-secondary)', marginBottom:16, lineHeight:1.5, fontSize:'0.9rem'}}>
+          Enter the 6-digit code for<br/><strong style={{color:'var(--text-primary)'}}>{email}</strong>
         </p>
+
+        {serverOtp && (
+          <div style={{
+            background:'var(--bg-secondary)', border:'2px dashed var(--brand-accent)',
+            borderRadius:12, padding:'14px 20px', marginBottom:24, textAlign:'center'
+          }}>
+            <p style={{fontSize:'0.72rem', color:'var(--text-secondary)', marginBottom:6, fontWeight:700, textTransform:'uppercase', letterSpacing:'1px'}}>Your Verification Code</p>
+            <p style={{fontSize:'2rem', fontWeight:800, letterSpacing:'10px', color:'var(--brand-accent)'}}>{serverOtp}</p>
+            <button
+              style={{fontSize:'0.8rem', color:'var(--brand-accent)', fontWeight:700, marginTop:6, background:'none', border:'none', cursor:'pointer'}}
+              onClick={() => {
+                setOtpCode(serverOtp.split(''));
+                setTimeout(() => otpRefs[5].current?.focus(), 50);
+              }}
+            >Tap to Auto-fill ↗</button>
+          </div>
+        )}
 
         <div style={{display:'flex', gap:10, marginBottom:32, justifyContent:'center'}}>
           {otpCode.map((digit, i) => (
