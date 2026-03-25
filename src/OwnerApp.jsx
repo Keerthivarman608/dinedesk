@@ -30,6 +30,14 @@ export default function OwnerApp({ user, onLogout, showToast, showConfirm }) {
 
   useEffect(() => { fetchVenuesAndBookings(); }, [user.id]);
 
+  useEffect(() => {
+    document.title = view === 'bookings' ? 'DineDesk Owner | Live Queue' : 'DineDesk Owner | My Venues';
+    let metaDesc = document.querySelector('meta[name="description"]');
+    if (metaDesc) {
+      metaDesc.setAttribute('content', view === 'bookings' ? 'Manage your restaurant reservations in real-time.' : 'Manage your restaurant venues on DineDesk.');
+    }
+  }, [view]);
+
   const switchVenue = async (id) => {
     setSelectedVenueId(id);
     setLoading(true);

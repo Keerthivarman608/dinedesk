@@ -1,7 +1,9 @@
-import { View, Text, StyleSheet, Dimensions, FlatList, ImageBackground, TouchableOpacity, Modal, TextInput } from 'react-native';
-import { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, Dimensions, FlatList, ImageBackground, TouchableOpacity, Modal, TextInput, RefreshControl } from 'react-native';
+import { useState, useEffect, useCallback } from 'react';
 import { Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import Animated, { FadeInDown, FadeInUp, useSharedValue, useAnimatedStyle, withRepeat, withTiming, withSequence } from 'react-native-reanimated';
+import * as Haptics from 'expo-haptics';
 import { fetchRestaurants, createBooking } from '../../constants/Data';
 
 interface Restaurant {
@@ -30,12 +32,24 @@ export default function HomeScreen() {
   const [guests, setGuests] = useState('2');
   const [time, setTime] = useState('19:00');
 
-  useEffect(() => {
-    fetchRestaurants().then(data => {
-      setRestaurants(data);
-      setLoading(false);
-    });
+  const [refreshing, setRefreshing] = useState(false);
+
+  const loadData = useCallback(async () => {
+    const data = await fetchRestaurants();
+    setRestaurants(data);
+    setLoading(false);
+    setRefreshing(false);
   }, []);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    loadData();
+  }, [loadData]);
 
   const handleBookPress = (restaurant: Restaurant) => {
     setSelectedRest(restaurant);
@@ -55,7 +69,7 @@ export default function HomeScreen() {
     router.push('/booking/success');
   };
 
-  const renderItem = ({ item }: { item: Restaurant }) => (
+  const renderItem = ({ item, index }: { item: Restaurant, index: number }) => (
     <View style={styles.pageContainer}>
       <ImageBackground 
         source={{ uri: item.image }} 
@@ -63,7 +77,10 @@ export default function HomeScreen() {
         resizeMode="cover"
       >
         <View style={styles.overlay}>
-          <View style={styles.infoContainer}>
+          <Animated.View 
+            entering={FadeInUp.delay(200).duration(800)}
+            style={styles.infoContainer}
+          >
             <Text style={styles.title}>{item.name}</Text>
             
             <View style={styles.tagsRow}>
@@ -82,15 +99,20 @@ export default function HomeScreen() {
             
             <Text style={styles.metaData}>{item.cuisine} • {item.distance}</Text>
 
-            <TouchableOpacity 
-              style={styles.bookButton} 
-              activeOpacity={0.8}
-              onPress={() => handleBookPress(item)}
-            >
-              <Text style={styles.bookButtonText}>Book Table</Text>
-              <Feather name="arrow-up-right" size={20} color="#0A0A0F" />
-            </TouchableOpacity>
-          </View>
+            <Animated.View entering={FadeInDown.delay(400).duration(600)}>
+              <TouchableOpacity 
+                style={styles.bookButton} 
+                activeOpacity={0.8}
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                  handleBookPress(item);
+                }}
+              >
+                <Text style={styles.bookButtonText}>Book Table</Text>
+                <Feather name="arrow-up-right" size={20} color="#0A0A0F" />
+              </TouchableOpacity>
+            </Animated.View>
+          </Animated.View>
         </View>
       </ImageBackground>
     </View>
@@ -100,7 +122,16 @@ export default function HomeScreen() {
     <View style={styles.container}>
       {loading ? (
         <View style={styles.loadingContainer}>
-          <Feather name="loader" size={32} color="#00F0FF" />
+          <Animated.View
+            entering={FadeInUp}
+            style={useAnimatedStyle(() => ({
+              transform: [{ scale: withRepeat(withSequence(withTiming(1.2, { duration: 1000 }), withTiming(1, { duration: 1000 })), -1, true) }],
+              opacity: withRepeat(withSequence(withTiming(1, { duration: 1000 }), withTiming(0.5, { duration: 1000 })), -1, true),
+            }))}
+          >
+            <Feather name="target" size={48} color="#00F0FF" />
+          </Animated.View>
+          <Text style={{ color: '#00F0FF', marginTop: 16, fontWeight: '700', letterSpacing: 2 }}>DINEDESK</Text>
         </View>
       ) : (
         <FlatList
@@ -112,7 +143,15 @@ export default function HomeScreen() {
           snapToInterval={height}
           snapToAlignment="start"
           decelerationRate="fast"
-          bounces={false}
+          bounces={true}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor="#00F0FF"
+              colors={['#00F0FF']}
+            />
+          }
         />
       )}
 

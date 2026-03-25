@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import './App.css';
 import { IconHome, IconSearch, IconCalendar, IconUser, IconStar, IconHeart, IconCheck, IconX, IconClock, IconUsers, IconMapPin } from './Icons';
 import * as api from './api';
@@ -64,7 +65,18 @@ export default function App() {
     <>
       {toast?.msg && <Toast msg={toast.msg} type={toast.type} />}
       {confirmDialog && <ConfirmDialog msg={confirmDialog.msg} onConfirm={() => { confirmDialog.onConfirm(); dismissConfirm(); }} onCancel={dismissConfirm} />}
-      {renderApp()}
+      <AnimatePresence mode="wait">
+        <motion.div
+          key={user ? (user.role === 'RESTAURANT' ? 'owner' : 'customer') : 'auth'}
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -10 }}
+          transition={{ duration: 0.3 }}
+          style={{ height: '100%' }}
+        >
+          {renderApp()}
+        </motion.div>
+      </AnimatePresence>
     </>
   );
 }
@@ -136,6 +148,23 @@ function CustomerApp({ user, onUpdateUser, onLogout, showToast, showConfirm }) {
 
   useEffect(() => { fetchAll(); }, [user.id]);
 
+  useEffect(() => {
+    let title = 'DineDesk | Home';
+    if (detailOpen && sel) { title = `DineDesk | ${sel.name}`; }
+    else if (view === 'search') { title = 'DineDesk | Search'; }
+    else if (view === 'bookings') { title = 'DineDesk | Reservations'; }
+    else if (view === 'profile') { title = 'DineDesk | Profile'; }
+    else if (view === 'success') { title = 'DineDesk | Booking Confirmed'; }
+    
+    document.title = title;
+    
+    // Update meta description
+    let metaDesc = document.querySelector('meta[name="description"]');
+    if (metaDesc) {
+      metaDesc.setAttribute('content', detailOpen && sel ? `Book a table and view details for ${sel.name} on DineDesk.` : `Reserve your perfect table instantly with DineDesk on our ${view} page.`);
+    }
+  }, [view, detailOpen, sel]);
+
   const toggleFav = (e, id) => {
     e.stopPropagation();
     setFavs(p => {
@@ -205,43 +234,87 @@ function CustomerApp({ user, onUpdateUser, onLogout, showToast, showConfirm }) {
 
   // Home
   if (view==='home') return (
-    <div className="app-container fade-in">
+    <div className="app-container">
       <div className="scroll-view">
-        <div className="home-header">
+        <motion.div 
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="home-header"
+        >
            <div><div className="home-greeting">Welcome back, {user.name}</div><h1 className="home-title">Find a Table</h1></div>
-           <button className="header-icon-btn" onClick={fetchAll} aria-label="Refresh restaurants">⟳</button>
-        </div>
-        <div className="categories-container">{CATS.map(c=><button key={c} className={`category-pill ${cat===c?'active':''}`} onClick={()=>setCat(c)}>{c}</button>)}</div>
+           <motion.button 
+             whileTap={{ rotate: 180 }}
+             className="header-icon-btn" 
+             onClick={fetchAll} 
+             aria-label="Refresh restaurants"
+           >
+             ⟳
+           </motion.button>
+        </motion.div>
+        
+        <motion.div 
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.1 }}
+          className="categories-container"
+        >
+          {CATS.map(c=><button key={c} className={`category-pill ${cat===c?'active':''}`} onClick={()=>setCat(c)}>{c}</button>)}
+        </motion.div>
+
         <div className="feed-list">
-          {loading ? (
-            <div className="skeleton-feed">
-              {[1,2,3].map(i => (
-                <div key={i} className="skeleton-card">
-                  <div className="skeleton skeleton-image" />
-                  <div className="skeleton skeleton-title" />
-                  <div className="skeleton skeleton-text" />
-                </div>
-              ))}
-            </div>
-          ) : filtered.length === 0 ? (
-            <div className="error-state">
-              <div className="error-icon"><IconSearch size={24} /></div>
-              <h3>No match found</h3>
-              <p style={{color:'var(--text-secondary)', marginTop:'8px'}}>Try exploring a different cuisine.</p>
-              <button className="btn-secondary mt-4" onClick={()=>setCat('All')}>Clear Filter</button>
-            </div>
-          ) : filtered.map(r=>(
-            <div className="rest-card" key={r.id} onClick={()=>openDetail(r)}>
-              <div className="rest-card-image-wrap">
-                 <img src={r.image} alt={r.name} className="rest-card-image" loading="lazy" />
-                 <button className="fav-btn" onClick={(e)=>toggleFav(e, r.id)} aria-label={favs.has(r.id) ? 'Remove from favorites' : 'Add to favorites'}><IconHeart filled={favs.has(r.id)} size={18} /></button>
-              </div>
-              <div className="rest-card-info">
-                 <div className="rest-card-title-row"><h3 className="rest-card-title">{r.name}</h3><div className="rest-card-rating"><IconStar size={14} /> {r.rating}</div></div>
-                 <div className="rest-card-meta">{r.cuisine} · {r.priceRange} · {r.distance}</div>
-              </div>
-            </div>
-          ))}
+          <AnimatePresence mode="popLayout">
+            {loading ? (
+              <motion.div 
+                key="loading"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="skeleton-feed"
+              >
+                {[1,2,3].map(i => (
+                  <div key={i} className="skeleton-card">
+                    <div className="skeleton skeleton-image" />
+                    <div className="skeleton skeleton-title" />
+                    <div className="skeleton skeleton-text" />
+                  </div>
+                ))}
+              </motion.div>
+            ) : filtered.length === 0 ? (
+              <motion.div 
+                key="empty"
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="error-state"
+              >
+                <div className="error-icon"><IconSearch size={24} /></div>
+                <h3>No match found</h3>
+                <p style={{color:'var(--text-secondary)', marginTop:'8px'}}>Try exploring a different cuisine.</p>
+                <button className="btn-secondary mt-4" onClick={()=>setCat('All')}>Clear Filter</button>
+              </motion.div>
+            ) : (
+              filtered.map((r, idx)=>(
+                <motion.div 
+                  layout
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: idx * 0.05 }}
+                  whileHover={{ y: -4 }}
+                  className="rest-card" 
+                  key={r.id} 
+                  onClick={()=>openDetail(r)}
+                >
+                  <div className="rest-card-image-wrap">
+                     <img src={r.image} alt={r.name} className="rest-card-image" loading="lazy" />
+                     <button className="fav-btn" onClick={(e)=>toggleFav(e, r.id)} aria-label={favs.has(r.id) ? 'Remove from favorites' : 'Add to favorites'}><IconHeart filled={favs.has(r.id)} size={18} /></button>
+                  </div>
+                  <div className="rest-card-info">
+                     <div className="rest-card-title-row"><h3 className="rest-card-title">{r.name}</h3><div className="rest-card-rating"><IconStar size={14} /> {r.rating}</div></div>
+                     <div className="rest-card-meta">{r.cuisine} · {r.priceRange} · {r.distance}</div>
+                  </div>
+                </motion.div>
+              ))
+            )}
+          </AnimatePresence>
         </div>
       </div>
       <Nav />
