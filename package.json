@@ -7,7 +7,9 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "install-all": "npm install && cd backend && npm install",
+    "start": "node backend/server.js"
   },
   "dependencies": {
     "@capacitor/android": "^8.2.0",
