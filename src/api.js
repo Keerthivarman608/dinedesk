@@ -1,5 +1,5 @@
 // Centralized API module for DineDesk
-const API = (import.meta.env.VITE_API_URL || 'http://localhost:3000') + '/api';
+const API = (import.meta.env.VITE_API_URL || '') + '/api';
 
 async function request(endpoint, options = {}) {
   const token = localStorage.getItem('dinedesk_token');
